@@ -1,9 +1,12 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const errorHandler = require('./errorHandler');
+const gateway = require('./backend/api/gateway');
+const pkceJwt = require('./backend/auth/pkceJwt');
 
 const app = express();
 app.use(express.json());
+app.use('/api', pkceJwt, gateway);
 
 const validateRideRequest = [
   body('pickupLocation').notEmpty().withMessage('pickupLocation is required'),
