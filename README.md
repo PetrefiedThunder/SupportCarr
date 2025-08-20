@@ -63,6 +63,10 @@ Environment variables configure the service:
 2. Run tests: `npm test`
 3. Lint code: `npm run lint`
 
+## Continuous Integration
+
+GitHub Actions runs linting and tests for pushes and pull requests targeting the `main` branch using [ci.yml](.github/workflows/ci.yml).
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on proposing changes.
