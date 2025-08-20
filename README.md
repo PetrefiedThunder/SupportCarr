@@ -20,6 +20,11 @@ SupportCarr is a Node.js-based ride-hailing platform API that enables riders to 
 3. (Optional) Run tests: `npm test`
 4. (Optional) Lint code: `npm run lint`
 
+## Continuous Integration
+
+This project uses a GitHub Actions workflow located at `.github/workflows/ci.yml`.
+The workflow runs linting and unit tests on every push and pull request targeting the `main` branch.
+
 ## API Endpoints
 
 ### GET /api/health
