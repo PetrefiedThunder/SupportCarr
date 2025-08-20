@@ -66,3 +66,7 @@ Environment variables configure the service:
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on proposing changes.
+
+## Continuous Integration
+
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs linting (`npm run lint`) and tests (`npm test`) on pushes and pull requests targeting the `main` branch.
