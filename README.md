@@ -1,6 +1,24 @@
 # SupportCarr
 
-SupportCarr is a ride-hailing platform API.
+SupportCarr is a Node.js-based ride-hailing platform API that enables riders to request trips and track ride lifecycles. The project serves as a reference implementation for core ride-hailing features.
+
+## Objectives
+
+- Expose a clean REST interface for creating and retrieving rides.
+- Provide health check and monitoring endpoints.
+- Lay the foundation for future enhancements such as driver matching, pricing, and notifications.
+
+## Installation Requirements
+
+- Node.js 18+
+- npm
+
+## Quick Start
+
+1. Install dependencies: `npm install`
+2. Start the server: `npm start`
+3. (Optional) Run tests: `npm test`
+4. (Optional) Lint code: `npm run lint`
 
 ## API Endpoints
 
@@ -57,12 +75,10 @@ Environment variables configure the service:
 | `REDIS_URL` | Redis connection string | – |
 | `JWT_SECRET` | Secret for signing JWT tokens | – |
 
-## Development Workflow
+## Contribution Guidelines
 
-1. Install dependencies: `npm install`
-2. Run tests: `npm test`
-3. Lint code: `npm run lint`
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for proposing changes.
 
-## Contributing
+## Roadmap
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on proposing changes.
+For long-term planning and upcoming features, see [ROADMAP.md](ROADMAP.md).
