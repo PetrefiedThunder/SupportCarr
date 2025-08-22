@@ -1,6 +1,10 @@
 {
   "name": "supportcarr",
   "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "services/*"
+  ],
   "description": "This is how supportcarr works",
   "main": "index.js",
   "scripts": {
