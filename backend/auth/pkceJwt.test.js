@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
-const pkceJwt = require('./pkceJwt');
+const pkceJwt = require('../../src/middleware/pkceJwt');
 
 test('rejects requests without bearer token', () => {
   const req = { headers: {} };

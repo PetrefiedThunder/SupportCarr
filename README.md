@@ -15,7 +15,7 @@ SupportCarr is a Node.js-based ride-hailing platform API that enables riders to 
 
 ## Quick Start
 
-1. Install dependencies: `npm install`
+1. Install dependencies for all packages (run from the repository root): `npm install`
 2. Start the server: `npm start`
 3. (Optional) Run tests: `npm test`
 4. (Optional) Lint code: `npm run lint`
