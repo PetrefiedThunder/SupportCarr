@@ -11,3 +11,8 @@ coverage/
 # Build outputs
 dist/
 
+*.log
+.env
+coverage/
+dist/
+node_modules
