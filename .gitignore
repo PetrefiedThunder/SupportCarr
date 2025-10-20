@@ -1,3 +1,16 @@
+node_modules/
+# Logs
+*.log
+
+# Environment files
+.env
+
+# Coverage directories
+coverage/
+
+# Build outputs
+dist/
+
 *.log
 .env
 coverage/
