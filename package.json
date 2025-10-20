@@ -1,11 +1,17 @@
 {
   "name": "supportcarr",
   "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "services/*"
+  ],
   "description": "This is how supportcarr works",
-  "main": "index.js",
+  "main": "services/api-gateway/index.js",
   "scripts": {
     "test": "jest",
     "start": "node index.js",
+    "test": "node --test backend/**/*.test.js",
+    "start": "node services/api-gateway/server.js",
     "lint": "npx eslint ."
   },
   "keywords": [],
@@ -20,5 +26,7 @@
   },
   "devDependencies": {
     "jest": "^30.0.5"
+    "@eslint/eslintrc": "^3.3.1",
+    "eslint": "^9.33.0"
   }
 }

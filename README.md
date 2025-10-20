@@ -1,5 +1,31 @@
 # SupportCarr
 
+SupportCarr is an Express-based API for a simple ride-hailing platform. It exposes endpoints for requesting rides and checking service health while demonstrating common patterns for building Node.js services. 
+
+## Objectives
+- Provide a clear reference implementation for ride-hailing logic.
+- Showcase Express 5 features and request validation.
+- Serve as a foundation for future expansion and experimentation.
+
+## Installation Requirements
+- Node.js >= 18
+- npm
+
+## Quick Start
+1. Install dependencies: `npm install`
+2. Set required environment variables (see [Configuration](#configuration)).
+3. Start the server: `npm start`
+4. Verify the service: `curl http://localhost:3000/api/health`
+
+## Configuration
+Environment variables configure the service:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Port for HTTP server | `3000` |
+| `DATABASE_URL` | Postgres connection string | – |
+| `REDIS_URL` | Redis connection string | – |
+| `JWT_SECRET` | Secret for signing JWT tokens | – |
 SupportCarr is a Node.js-based ride-hailing platform API that enables riders to request trips and track ride lifecycles. The project serves as a reference implementation for core ride-hailing features.
 
 ## Objectives
@@ -15,7 +41,7 @@ SupportCarr is a Node.js-based ride-hailing platform API that enables riders to 
 
 ## Quick Start
 
-1. Install dependencies: `npm install`
+1. Install dependencies for all packages (run from the repository root): `npm install`
 2. Start the server: `npm start`
 3. (Optional) Run tests: `npm test`
 4. (Optional) Lint code: `npm run lint`
@@ -69,6 +95,10 @@ Retrieves details for a specific ride.
 }
 ```
 
+## Contribution Guidelines
+We welcome issues and pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
+
+## Roadmap
 ## Configuration
 
 Environment variables configure the service:
@@ -86,4 +116,9 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for de
 
 ## Roadmap
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on proposing changes.
+
+## Continuous Integration
+
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs linting (`npm run lint`) and tests (`npm test`) on pushes and pull requests targeting the `main` branch.
 For long-term planning and upcoming features, see [ROADMAP.md](ROADMAP.md).

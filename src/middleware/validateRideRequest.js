@@ -1,12 +1,4 @@
-const express = require('express');
 const { body, validationResult } = require('express-validator');
-const errorHandler = require('./errorHandler');
-const gateway = require('./backend/api/gateway');
-const pkceJwt = require('./backend/auth/pkceJwt');
-
-const app = express();
-app.use(express.json());
-app.use('/api', pkceJwt, gateway);
 
 const validateRideRequest = [
   body('pickupLocation').notEmpty().withMessage('pickupLocation is required'),
@@ -21,13 +13,4 @@ const validateRideRequest = [
   },
 ];
 
-app.post('/rides', validateRideRequest, (req, res) => {
-  res.status(201).json({ message: 'Ride request received' });
-});
-
-app.use(errorHandler);
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+module.exports = validateRideRequest;
