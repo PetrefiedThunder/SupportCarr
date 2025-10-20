@@ -116,4 +116,9 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for de
 
 ## Roadmap
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on proposing changes.
+
+## Continuous Integration
+
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs linting (`npm run lint`) and tests (`npm test`) on pushes and pull requests targeting the `main` branch.
 For long-term planning and upcoming features, see [ROADMAP.md](ROADMAP.md).
