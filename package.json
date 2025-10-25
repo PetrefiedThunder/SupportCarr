@@ -1,32 +1,14 @@
 {
-  "name": "supportcarr",
-  "version": "1.0.0",
+  "name": "supportcarr-monorepo",
+  "version": "0.1.0",
   "private": true,
-  "workspaces": [
-    "services/*"
-  ],
-  "description": "This is how supportcarr works",
-  "main": "services/api-gateway/index.js",
+  "workspaces": ["server", "client"],
   "scripts": {
-    "test": "jest",
-    "start": "node index.js",
-    "test": "node --test backend/**/*.test.js",
-    "start": "node services/api-gateway/server.js",
-    "lint": "npx eslint ."
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "express": "^5.1.0",
-    "express-validator": "^7.2.1",
-    "jsonwebtoken": "^9.0.2",
-    "redis": "^4.6.7"
-  },
-  "devDependencies": {
-    "jest": "^30.0.5"
-    "@eslint/eslintrc": "^3.3.1",
-    "eslint": "^9.33.0"
+    "install:all": "npm install --workspaces",
+    "dev:server": "npm --workspace server run dev",
+    "dev:client": "npm --workspace client run dev",
+    "test": "npm --workspace server run test && npm --workspace client run test",
+    "lint": "npm --workspace server run lint && npm --workspace client run lint",
+    "build": "npm --workspace client run build"
   }
 }

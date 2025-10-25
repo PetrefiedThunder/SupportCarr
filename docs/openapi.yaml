@@ -1,0 +1,203 @@
+openapi: 3.1.0
+info:
+  title: SupportCarr API
+  version: 0.1.0
+servers:
+  - url: https://api.supportcarr.local
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service status
+  /api/auth/register:
+    post:
+      summary: Register a user or driver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Successful registration
+  /api/auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Access and refresh tokens
+  /api/rides:
+    post:
+      summary: Request a rescue ride
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RideRequest'
+      responses:
+        '201':
+          description: Ride created
+    get:
+      summary: List rides for the authenticated rider
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of rides
+  /api/rides/{rideId}:
+    patch:
+      summary: Update ride status
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: rideId
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RideStatusUpdate'
+      responses:
+        '200':
+          description: Updated ride
+  /api/rides/drivers/{driverId}:
+    get:
+      summary: List active rides for a driver
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: driverId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Collection of rides assigned to the driver
+  /api/drivers:
+    post:
+      summary: Create or update driver profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriverProfile'
+      responses:
+        '201':
+          description: Driver profile
+  /api/drivers/{driverId}:
+    patch:
+      summary: Update driver availability
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: driverId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriverStatusUpdate'
+      responses:
+        '200':
+          description: Updated driver
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password, name, phoneNumber]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        name:
+          type: string
+        phoneNumber:
+          type: string
+        role:
+          type: string
+          enum: [rider, driver, admin]
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+    RideRequest:
+      type: object
+      required: [pickup, dropoff, bikeType]
+      properties:
+        pickup:
+          $ref: '#/components/schemas/Location'
+        dropoff:
+          $ref: '#/components/schemas/Location'
+        bikeType:
+          type: string
+          enum: [bike, ebike, cargo, other]
+        notes:
+          type: string
+    RideStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [accepted, en_route, completed, cancelled]
+    DriverProfile:
+      type: object
+      required: [vehicleType]
+      properties:
+        vehicleType:
+          type: string
+          enum: [van, truck, suv, other]
+        vehicleDescription:
+          type: string
+    DriverStatusUpdate:
+      type: object
+      properties:
+        active:
+          type: boolean
+        currentLocation:
+          $ref: '#/components/schemas/Location'
+    Location:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        address:
+          type: string
