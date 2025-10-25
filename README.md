@@ -1,124 +1,61 @@
-# SupportCarr
+# SupportCarr Monorepo
 
-SupportCarr is an Express-based API for a simple ride-hailing platform. It exposes endpoints for requesting rides and checking service health while demonstrating common patterns for building Node.js services. 
+SupportCarr delivers a full-stack MVP for an on-demand e-bike and bicycle rescue service operating across Echo Park, Silver Lake,
+and a Joshua Tree weekend pilot. The project includes an Express + MongoDB backend, a React + Vite PWA frontend, automated tests,
+CI/CD, seeding utilities, and a scripted product walkthrough.
 
-## Objectives
-- Provide a clear reference implementation for ride-hailing logic.
-- Showcase Express 5 features and request validation.
-- Serve as a foundation for future expansion and experimentation.
+## Monorepo Structure
 
-## Installation Requirements
-- Node.js >= 18
-- npm
-
-## Quick Start
-1. Install dependencies: `npm install`
-2. Set required environment variables (see [Configuration](#configuration)).
-3. Start the server: `npm start`
-4. Verify the service: `curl http://localhost:3000/api/health`
-
-## Configuration
-Environment variables configure the service:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Port for HTTP server | `3000` |
-| `DATABASE_URL` | Postgres connection string | – |
-| `REDIS_URL` | Redis connection string | – |
-| `JWT_SECRET` | Secret for signing JWT tokens | – |
-SupportCarr is a Node.js-based ride-hailing platform API that enables riders to request trips and track ride lifecycles. The project serves as a reference implementation for core ride-hailing features.
-
-## Objectives
-
-- Expose a clean REST interface for creating and retrieving rides.
-- Provide health check and monitoring endpoints.
-- Lay the foundation for future enhancements such as driver matching, pricing, and notifications.
-
-## Installation Requirements
-
-- Node.js 18+
-- npm
-
-## Quick Start
-
-1. Install dependencies for all packages (run from the repository root): `npm install`
-2. Start the server: `npm start`
-3. (Optional) Run tests: `npm test`
-4. (Optional) Lint code: `npm run lint`
-
-## Continuous Integration
-
-This project uses a GitHub Actions workflow located at `.github/workflows/ci.yml`.
-The workflow runs linting and unit tests on every push and pull request targeting the `main` branch.
-
-## API Endpoints
-
-### GET /api/health
-Checks service status.
-
-**Sample Response**
-```json
-{"status":"ok"}
+```
+client/   # React + Vite PWA, Tailwind UI, Jest + RTL tests
+server/   # Express API gateway, services, Mongoose models, Jest tests
+_docs_/   # Architecture, API reference, setup guides
 ```
 
-### POST /api/rides
-Creates a new ride request.
+## Getting Started
 
-**Sample Request**
-```json
-{
-  "rider_id": "abc123",
-  "pickup": {"lat": 37.77, "lng": -122.41},
-  "dropoff": {"lat": 37.79, "lng": -122.42}
-}
+```bash
+npm install
+cp server/.env.example server/.env
+cp client/.env.example client/.env
+npm run dev:server
+npm run dev:client
 ```
 
-**Sample Response**
-```json
-{
-  "ride_id": "ride123",
-  "status": "REQUESTED"
-}
+The API listens on `http://localhost:4000`; the PWA runs on `http://localhost:5173`.
+
+## Key Features
+
+- JWT authentication with refresh rotation for riders, drivers, and admins.
+- Ride request lifecycle management with Redis-backed driver matching and Twilio SMS stubs.
+- Stripe Connect payout simulation on ride completion.
+- Airtable analytics stubs for dispatch logging.
+- Progressive Web App with offline fallback, live ride view, driver console, and admin dispatch checklist.
+- Jest test suites for backend services/controllers and frontend components.
+- GitHub Actions workflow running linting, tests, and PWA builds on every PR.
+
+## Scripts
+
+```bash
+npm test         # run backend + frontend tests
+npm run lint     # lint both workspaces
+npm run build    # build the PWA for production
+npm --workspace server run seed     # seed MongoDB and Redis with demo data
+node server/src/utils/demoScript.js # simulate end-to-end breakdown workflow
 ```
 
-### GET /api/rides/{ride_id}
-Retrieves details for a specific ride.
+## Documentation
 
-**Sample Response**
-```json
-{
-  "ride_id": "ride123",
-  "rider_id": "abc123",
-  "status": "REQUESTED",
-  "pickup": {"lat": 37.77, "lng": -122.41},
-  "dropoff": {"lat": 37.79, "lng": -122.42}
-}
+- [Setup & Operations](docs/README.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [API Reference](docs/API.md)
+
+## Health Check
+
+Verify the API is running:
+
+```bash
+curl http://localhost:4000/api/health
 ```
 
-## Contribution Guidelines
-We welcome issues and pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
-
-## Roadmap
-## Configuration
-
-Environment variables configure the service:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Port for HTTP server | `3000` |
-| `DATABASE_URL` | Postgres connection string | – |
-| `REDIS_URL` | Redis connection string | – |
-| `JWT_SECRET` | Secret for signing JWT tokens | – |
-
-## Contribution Guidelines
-
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for proposing changes.
-
-## Roadmap
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on proposing changes.
-
-## Continuous Integration
-
-A GitHub Actions workflow (`.github/workflows/ci.yml`) runs linting (`npm run lint`) and tests (`npm test`) on pushes and pull requests targeting the `main` branch.
-For long-term planning and upcoming features, see [ROADMAP.md](ROADMAP.md).
+Expect `{ "status": "ok" }`.
