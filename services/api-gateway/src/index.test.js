@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { describe, expect, it } from '@jest/globals';
 import app from './app.js';
 
 describe('POST /v1/rides', () => {

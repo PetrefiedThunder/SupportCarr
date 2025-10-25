@@ -40,6 +40,24 @@ const rideSchema = new mongoose.Schema(
       default: null
     },
     notes: String
+    notes: String,
+    paymentIntentId: String,
+    paymentChargeId: String,
+    paymentStatus: {
+      type: String,
+      enum: [
+        'requires_payment_method',
+        'requires_confirmation',
+        'requires_action',
+        'processing',
+        'requires_capture',
+        'canceled',
+        'succeeded',
+        'failed'
+      ]
+    },
+    paymentCapturedAt: Date,
+    lastPaymentError: String
   },
   { timestamps: true }
 );
