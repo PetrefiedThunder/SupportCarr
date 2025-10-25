@@ -3,11 +3,12 @@ const jwt = require('jsonwebtoken');
 function authenticate(requiredRoles = []) {
   return (req, res, next) => {
     const header = req.headers.authorization;
-    if (!header?.startsWith('Bearer ')) {
+    const bearerToken = header?.startsWith('Bearer ') ? header.replace('Bearer ', '') : null;
+    const token = bearerToken || req.query?.token;
+
+    if (!token) {
       return res.status(401).json({ message: 'Authentication required' });
     }
-
-    const token = header.replace('Bearer ', '');
 
     try {
       const payload = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');

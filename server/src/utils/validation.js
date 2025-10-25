@@ -43,7 +43,8 @@ const rideUpdateSchema = Joi.object({
     rideId: Joi.string().required()
   }),
   body: Joi.object({
-    status: Joi.string().valid('accepted', 'en_route', 'completed', 'cancelled').required()
+    status: Joi.string().valid('accepted', 'en_route', 'completed', 'cancelled').required(),
+    driverEtaMinutes: Joi.number().min(0).allow(null)
   })
 });
 
