@@ -1,7 +1,7 @@
 const Ride = require('../models/Ride');
 const Driver = require('../models/Driver');
 const { findNearbyDrivers, triggerDriverNotification } = require('./dispatchService');
-const { simulateCharge } = require('./paymentService');
+const { ensureRidePaymentIntent, captureRidePayment } = require('./paymentService');
 const { logRideEvent } = require('./analyticsService');
 
 function calculatePrice(distanceMiles) {
@@ -23,6 +23,8 @@ async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
     priceCents,
     notes
   });
+
+  await ensureRidePaymentIntent({ ride, amountCents: priceCents });
 
   await logRideEvent({ type: 'ride_requested', rideId: ride.id });
   await attemptAutoAssignDriver(ride);
@@ -77,7 +79,14 @@ async function updateRideStatus({ rideId, status }) {
   await logRideEvent({ type: 'ride_status_updated', rideId: ride.id, status });
 
   if (status === 'completed') {
-    await simulateCharge({ ride, amountCents: ride.priceCents });
+    await captureRidePayment({ ride });
+    await logRideEvent({
+      type: 'ride_completed',
+      rideId: ride.id,
+      paymentIntentId: ride.paymentIntentId,
+      paymentChargeId: ride.paymentChargeId,
+      paymentStatus: ride.paymentStatus
+    });
   }
 
   return ride;
