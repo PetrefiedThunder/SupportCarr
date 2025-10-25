@@ -34,6 +34,12 @@ const rideSchema = new mongoose.Schema(
       enum: ['requested', 'accepted', 'en_route', 'completed', 'cancelled'],
       default: 'requested'
     },
+    driverEtaMinutes: {
+      type: Number,
+      min: 0,
+      default: null
+    },
+    notes: String
     notes: String,
     paymentIntentId: String,
     paymentChargeId: String,
