@@ -1,5 +1,6 @@
-const request = require('supertest');
-const app = require('../index');
+import request from 'supertest';
+import app from '../src/app.js';
+import { describe, expect, test } from '@jest/globals';
 
 describe('GET /v1/rides', () => {
   test('returns a mock ride ID', async () => {

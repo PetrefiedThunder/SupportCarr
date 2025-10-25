@@ -24,6 +24,10 @@ app.post('/v1/rides', (req, res, next) => {
   }
 });
 
+app.get('/v1/rides', (req, res) => {
+  res.json({ rideId: 'mock-ride-id' });
+});
+
 app.use(errorHandler);
 
 export default app;
