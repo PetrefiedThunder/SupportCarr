@@ -6,7 +6,8 @@ const logger = require('./logger');
  * @returns {Promise<void>}
  */
 async function connectDatabase() {
-  const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/supportcarr';
+  const mongoUri =
+    process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/supportcarr';
 
   if (mongoose.connection.readyState === 1) {
     return;
