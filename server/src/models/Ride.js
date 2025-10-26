@@ -39,7 +39,6 @@ const rideSchema = new mongoose.Schema(
       min: 0,
       default: null
     },
-    notes: String
     notes: String,
     paymentIntentId: String,
     paymentChargeId: String,
