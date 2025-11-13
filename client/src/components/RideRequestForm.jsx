@@ -371,17 +371,20 @@ export default function RideRequestForm({ onSuccess }) {
         onPickupChange={(coords) => handleMapLocationChange('pickup', coords)}
         onDropoffChange={(coords) => handleMapLocationChange('dropoff', coords)}
       />
+      <div className="bg-brand-500 text-white text-center py-4 rounded-lg font-bold text-2xl">
+        $50 Flat Rate
+      </div>
       <label className="flex flex-col text-sm">
-        Bike Type
+        Vehicle Type
         <select
           className="mt-1 p-2 rounded bg-slate-800 border border-slate-700"
           name="bikeType"
           value={form.bikeType}
           onChange={(event) => setForm((prev) => ({ ...prev, bikeType: event.target.value }))}
         >
-          <option value="bike">Bike</option>
-          <option value="ebike">E-Bike</option>
-          <option value="cargo">Cargo</option>
+          <option value="bike">Standard Bike</option>
+          <option value="ebike">E-Bike/Scooter</option>
+          <option value="cargo">Folding/Small</option>
           <option value="other">Other</option>
         </select>
       </label>

@@ -6,6 +6,7 @@ const driverController = require('../controllers/driverController');
 
 const router = express.Router();
 
+router.get('/', authenticate(['admin']), driverController.listAllDrivers);
 router.post('/', authenticate(['driver']), validate(driverUpsertSchema), driverController.upsertDriver);
 router.patch('/:driverId', authenticate(['driver', 'admin']), validate(driverUpdateSchema), driverController.updateDriver);
 

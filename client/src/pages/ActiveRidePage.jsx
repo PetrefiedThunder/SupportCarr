@@ -41,17 +41,38 @@ export default function ActiveRidePage() {
               <p className="text-4xl font-bold text-brand-500" data-testid="driver-eta">
                 {etaLabel}
               </p>
-              <p className="text-slate-300 text-sm">
-                Dispatch uses Redis geospatial lookups to grab the nearest fleet driver. We
-                push new ETAs as soon as the driver advances their status.
-              </p>
-              <ul className="text-sm text-slate-400 space-y-1">
-                <li>Bike Type: {activeRide.bikeType}</li>
-                <li>Price: ${(activeRide.priceCents / 100).toFixed(2)}</li>
-                {activeRide.driver?.user && (
-                  <li>Driver: {activeRide.driver.user.name}</li>
+              <div className="space-y-3">
+                <div className="text-sm text-slate-400">
+                  <div className="flex justify-between">
+                    <span>Vehicle Type:</span>
+                    <span className="font-semibold text-white capitalize">{activeRide.bikeType}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Price:</span>
+                    <span className="font-semibold text-white">${(activeRide.priceCents / 100).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {activeRide.driver && (
+                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-2">
+                    <h3 className="font-semibold text-brand-400">Support Car Details</h3>
+                    <div className="text-sm text-slate-300 space-y-1">
+                      <div className="flex justify-between">
+                        <span>Driver:</span>
+                        <span className="font-semibold">{activeRide.driver.user?.name || 'Unknown'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Vehicle Type:</span>
+                        <span className="font-semibold capitalize">{activeRide.driver.vehicleType || 'Unknown'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>License Plate:</span>
+                        <span className="font-semibold font-mono">{activeRide.driver.licensePlate || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </ul>
+              </div>
             </div>
           </article>
         ) : (
