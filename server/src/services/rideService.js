@@ -7,9 +7,8 @@ const rideEvents = require('../utils/rideEvents');
 const serializeRide = require('../utils/serializeRide');
 
 function calculatePrice(distanceMiles) {
-  if (distanceMiles <= 3) return 3900;
-  if (distanceMiles <= 7) return 5900;
-  return 7900;
+  // Flat rate: $50 for all rides regardless of distance
+  return 5000;
 }
 
 async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
@@ -70,7 +69,7 @@ async function attemptAutoAssignDriver(ride) {
   return ride;
 }
 
-async function updateRideStatus({ rideId, status, driverEtaMinutes }) {
+async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId }) {
   const ride = await Ride.findById(rideId).populate({ path: 'driver', populate: 'user' });
   if (!ride) {
     throw new Error('Ride not found');
@@ -79,6 +78,9 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes }) {
   ride.status = status;
   if (driverEtaMinutes !== undefined) {
     ride.driverEtaMinutes = driverEtaMinutes;
+  }
+  if (driverId !== undefined) {
+    ride.driver = driverId;
   }
   await ride.save();
   await logRideEvent({ type: 'ride_status_updated', rideId: ride.id, status });

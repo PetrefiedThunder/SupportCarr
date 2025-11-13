@@ -23,7 +23,8 @@ async function updateRide(req, res, next) {
     const ride = await rideService.updateRideStatus({
       rideId: req.params.rideId,
       status: req.body.status,
-      driverEtaMinutes: req.body.driverEtaMinutes
+      driverEtaMinutes: req.body.driverEtaMinutes,
+      driverId: req.body.driverId
     });
     res.json(ride);
   } catch (error) {
@@ -100,10 +101,34 @@ async function listDriverRides(req, res, next) {
   }
 }
 
+async function pollRide(req, res, next) {
+  try {
+    const ride = await rideService.getRideById(req.params.rideId);
+    if (!ride) {
+      return res.status(404).json({ message: 'Ride not found' });
+    }
+
+    const userId = req.user.sub;
+    const isParticipant =
+      ride.rider?.toString() === userId ||
+      ride.driver?.user?.toString() === userId ||
+      req.user.role === 'admin';
+
+    if (!isParticipant) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    res.json(serializeRide(ride));
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   createRide,
   updateRide,
   listUserRides,
   listDriverRides,
-  streamRide
+  streamRide,
+  pollRide
 };

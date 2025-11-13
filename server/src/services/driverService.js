@@ -31,7 +31,12 @@ async function updateDriverStatus({ driverId, active, currentLocation }) {
   return driver;
 }
 
+async function listAllDrivers() {
+  return Driver.find().populate('user', 'name email');
+}
+
 module.exports = {
   upsertDriver,
-  updateDriverStatus
+  updateDriverStatus,
+  listAllDrivers
 };

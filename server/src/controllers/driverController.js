@@ -26,7 +26,17 @@ async function updateDriver(req, res, next) {
   }
 }
 
+async function listAllDrivers(req, res, next) {
+  try {
+    const drivers = await driverService.listAllDrivers();
+    res.json(drivers);
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   upsertDriver,
-  updateDriver
+  updateDriver,
+  listAllDrivers
 };

@@ -21,10 +21,59 @@ function getStripeClient() {
   return stripeClient;
 }
 
+async function ensureStripeCustomer({ user }) {
+  const stripe = getStripeClient();
+  const User = require('../models/User');
+
+  if (user.stripeCustomerId) {
+    try {
+      // Verify the customer still exists
+      await stripe.customers.retrieve(user.stripeCustomerId);
+      return user.stripeCustomerId;
+    } catch (error) {
+      // Customer doesn't exist, create a new one
+      logger.warn('Stripe customer not found, creating new one', {
+        userId: user.id,
+        oldCustomerId: user.stripeCustomerId
+      });
+    }
+  }
+
+  // Create a new Stripe customer
+  const customer = await stripe.customers.create({
+    email: user.email,
+    name: user.name,
+    metadata: {
+      userId: String(user.id)
+    }
+  });
+
+  // Update user with customer ID
+  await User.findByIdAndUpdate(user.id, {
+    stripeCustomerId: customer.id
+  });
+
+  logger.info('Stripe customer created', {
+    userId: user.id,
+    customerId: customer.id
+  });
+
+  return customer.id;
+}
+
 async function ensureRidePaymentIntent({ ride, amountCents }) {
   const stripe = getStripeClient();
+  const User = require('../models/User');
 
   try {
+    // Get the rider user to ensure they have a Stripe customer
+    const riderUser = await User.findById(ride.rider);
+    if (!riderUser) {
+      throw new Error('Rider not found');
+    }
+
+    const customerId = await ensureStripeCustomer({ user: riderUser });
+
     if (ride.paymentIntentId) {
       const existingIntent = await stripe.paymentIntents.retrieve(ride.paymentIntentId);
 
@@ -47,6 +96,7 @@ async function ensureRidePaymentIntent({ ride, amountCents }) {
       amount: amountCents,
       currency: 'usd',
       capture_method: 'manual',
+      customer: customerId,
       metadata: {
         rideId: ride.id,
         riderId: ride.rider ? String(ride.rider) : undefined,
@@ -125,6 +175,7 @@ function __resetStripeClient() {
 }
 
 module.exports = {
+  ensureStripeCustomer,
   ensureRidePaymentIntent,
   captureRidePayment,
   __setStripeClient,

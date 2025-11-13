@@ -13,6 +13,10 @@ const driverSchema = new mongoose.Schema(
       required: true
     },
     vehicleDescription: String,
+    licensePlate: {
+      type: String,
+      default: null
+    },
     active: {
       type: Boolean,
       default: false
