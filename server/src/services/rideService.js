@@ -38,9 +38,23 @@ function estimateDistanceMiles(pickup, dropoff) {
     return 2;
   }
 
-  const dx = pickup.lat - dropoff.lat;
-  const dy = pickup.lng - dropoff.lng;
-  return Math.max(1, Math.sqrt(dx * dx + dy * dy) * 69);
+  // Use Haversine formula for accurate great-circle distance
+  const R = 3959; // Earth's radius in miles
+  const toRadians = (degrees) => degrees * (Math.PI / 180);
+
+  const lat1 = toRadians(pickup.lat);
+  const lat2 = toRadians(dropoff.lat);
+  const deltaLat = toRadians(dropoff.lat - pickup.lat);
+  const deltaLng = toRadians(dropoff.lng - pickup.lng);
+
+  const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+            Math.cos(lat1) * Math.cos(lat2) *
+            Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+
+  return Math.max(1, distance);
 }
 
 async function attemptAutoAssignDriver(ride) {
