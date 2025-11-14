@@ -3,10 +3,58 @@ const Driver = require('../models/Driver');
 const User = require('../models/User');
 const { findNearbyDrivers, triggerDriverNotification } = require('./dispatchService');
 const { ensureRidePaymentIntent, captureRidePayment } = require('./paymentService');
-const { logRideEvent, logRideToAirtable, updateRideInAirtable } = require('./analyticsService');
+const { logRideEvent, updateRideInAirtable } = require('./analyticsService');
 const smsService = require('./smsService');
 const rideEvents = require('../utils/rideEvents');
 const serializeRide = require('../utils/serializeRide');
+
+// Finite state machine for ride status transitions
+const VALID_STATUS_TRANSITIONS = {
+  requested: ['accepted', 'cancelled'],
+  accepted: ['en_route', 'cancelled'],
+  en_route: ['completed', 'cancelled'],
+  completed: [], // Terminal state
+  cancelled: [] // Terminal state
+};
+
+const VALID_BIKE_TYPES = ['bike', 'ebike', 'cargo', 'other'];
+
+/**
+ * Validate if a status transition is allowed
+ * @param {string} currentStatus - Current ride status
+ * @param {string} newStatus - Desired new status
+ * @throws {Error} If transition is not valid
+ */
+function validateStatusTransition(currentStatus, newStatus) {
+  const allowedTransitions = VALID_STATUS_TRANSITIONS[currentStatus];
+  if (!allowedTransitions) {
+    throw new Error(`Invalid current status: ${currentStatus}`);
+  }
+  if (!allowedTransitions.includes(newStatus)) {
+    throw new Error(
+      `Invalid status transition from '${currentStatus}' to '${newStatus}'. ` +
+      `Allowed transitions: ${allowedTransitions.join(', ') || 'none (terminal state)'}`
+    );
+  }
+}
+
+/**
+ * Validate location coordinates
+ * @param {Object} location - Location object with lat/lng
+ * @param {string} fieldName - Name of the field for error messages
+ * @throws {Error} If coordinates are invalid
+ */
+function validateLocation(location, fieldName) {
+  if (!location || typeof location !== 'object') {
+    throw new Error(`${fieldName} must be an object`);
+  }
+  if (typeof location.lat !== 'number' || location.lat < -90 || location.lat > 90) {
+    throw new Error(`${fieldName}.lat must be a number between -90 and 90`);
+  }
+  if (typeof location.lng !== 'number' || location.lng < -180 || location.lng > 180) {
+    throw new Error(`${fieldName}.lng must be a number between -180 and 180`);
+  }
+}
 
 function calculatePrice(distanceMiles) {
   // Flat rate: $50 for all rides regardless of distance
@@ -14,17 +62,37 @@ function calculatePrice(distanceMiles) {
 }
 
 async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
+  // Input validation
+  if (!riderId) {
+    throw new Error('riderId is required');
+  }
+  
+  validateLocation(pickup, 'pickup');
+  validateLocation(dropoff, 'dropoff');
+  
+  if (bikeType && !VALID_BIKE_TYPES.includes(bikeType)) {
+    throw new Error(`Invalid bikeType. Must be one of: ${VALID_BIKE_TYPES.join(', ')}`);
+  }
+
   // Get rider's phone number for denormalized storage
   const rider = await User.findById(riderId);
+  if (!rider) {
+    throw new Error('Rider not found');
+  }
+
+  // Ensure riderPhone is always set
+  if (!rider.phoneNumber) {
+    throw new Error('Rider must have a phone number');
+  }
 
   const distanceMiles = estimateDistanceMiles(pickup, dropoff);
   const priceCents = calculatePrice(distanceMiles);
   const ride = await Ride.create({
     rider: riderId,
-    riderPhone: rider?.phoneNumber || null,
+    riderPhone: rider.phoneNumber,
     pickup,
     dropoff,
-    bikeType,
+    bikeType: bikeType || 'bike',
     status: 'requested',
     distanceMiles,
     priceCents,
@@ -90,6 +158,14 @@ async function attemptAutoAssignDriver(ride) {
 }
 
 async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId }) {
+  // Input validation
+  if (!rideId) {
+    throw new Error('rideId is required');
+  }
+  if (!status) {
+    throw new Error('status is required');
+  }
+
   const ride = await Ride.findById(rideId)
     .populate({ path: 'driver', populate: 'user' })
     .populate('rider');
@@ -98,8 +174,16 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId }) 
     throw new Error('Ride not found');
   }
 
+  // Validate status transition using FSM
+  if (status !== ride.status) {
+    validateStatusTransition(ride.status, status);
+  }
+
   ride.status = status;
   if (driverEtaMinutes !== undefined) {
+    if (typeof driverEtaMinutes !== 'number' || driverEtaMinutes < 0) {
+      throw new Error('driverEtaMinutes must be a non-negative number');
+    }
     ride.driverEtaMinutes = driverEtaMinutes;
   }
   if (driverId !== undefined) {
@@ -119,7 +203,10 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId }) 
     });
 
     // Send WTP SMS if not already asked
-    if (!ride.wtpAsked && ride.rider?.phoneNumber && ride.dropoff?.address) {
+    // Note: wtpAsked might be undefined for old rides, so we check for both undefined and false
+    const shouldSendWtp = !ride.wtpAsked && ride.rider?.phoneNumber && ride.dropoff?.address;
+    
+    if (shouldSendWtp) {
       try {
         await smsService.sendWtpSms({
           riderPhone: ride.rider.phoneNumber,
@@ -171,5 +258,10 @@ module.exports = {
   listRidesForUser,
   listActiveRidesForDriver,
   attemptAutoAssignDriver,
-  getRideById
+  getRideById,
+  // Export validation functions for testing
+  validateStatusTransition,
+  validateLocation,
+  VALID_STATUS_TRANSITIONS,
+  VALID_BIKE_TYPES
 };

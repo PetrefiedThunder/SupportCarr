@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "lint": "eslint \"src/**/*.js\"",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint \"src/**/*.js\" --ignore-pattern \"src/tests/**\"",
     "test": "jest --runInBand --detectOpenHandles",
     "test:unit": "jest --runInBand --detectOpenHandles --config=jest.unit.config.cjs",
     "test:integration": "jest --runInBand --detectOpenHandles --config=jest.integration.config.cjs",

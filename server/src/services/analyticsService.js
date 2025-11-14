@@ -5,7 +5,12 @@ const logger = require('../config/logger');
 
 const airtableRidesTableName = process.env.AIRTABLE_RIDES_TABLE || 'Rides';
 const airtableSmsLogsTableName = process.env.AIRTABLE_SMS_LOGS_TABLE || 'SMS Logs';
+const AIRTABLE_TIMEOUT_MS = 10000; // 10 second timeout
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 1000; // 1 second
+
 let airtableBase = null;
+const smsLogCache = new Set(); // Cache for SMS message SIDs to prevent duplicates
 
 function getAirtableBase() {
   if (airtableBase !== null) {
@@ -23,6 +28,42 @@ function getAirtableBase() {
 
   airtableBase = new Airtable({ apiKey }).base(baseId);
   return airtableBase;
+}
+
+/**
+ * Execute an Airtable operation with timeout and exponential backoff retry
+ * @param {Function} operation - Async function to execute
+ * @param {string} operationName - Name for logging
+ * @returns {Promise<any>} Result of the operation
+ */
+async function withRetry(operation, operationName) {
+  let lastError;
+  
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      // Execute with timeout
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Airtable operation timeout')), AIRTABLE_TIMEOUT_MS)
+      );
+      
+      const result = await Promise.race([operation(), timeoutPromise]);
+      return result;
+    } catch (error) {
+      lastError = error;
+      
+      if (attempt < MAX_RETRIES - 1) {
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+        logger.warn(`${operationName} failed, retrying in ${delay}ms`, {
+          attempt: attempt + 1,
+          error: error.message
+        });
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError;
 }
 
 async function logRideEvent(event) {
@@ -43,13 +84,9 @@ async function logRideEvent(event) {
       PayloadJson: JSON.stringify(event)
     };
 
-    await base(airtableRidesTableName).create(
-      [
-        {
-          fields
-        }
-      ],
-      { typecast: true }
+    await withRetry(
+      async () => base(airtableRidesTableName).create([{ fields }], { typecast: true }),
+      'logRideEvent'
     );
   } catch (error) {
     logger.error('Failed to record ride analytics event', {
@@ -85,13 +122,9 @@ async function logRideToAirtable(ride) {
       'WTP amount (USD)': ride.wtpAmountUsd || null
     };
 
-    await base(airtableRidesTableName).create(
-      [
-        {
-          fields
-        }
-      ],
-      { typecast: true }
+    await withRetry(
+      async () => base(airtableRidesTableName).create([{ fields }], { typecast: true }),
+      'logRideToAirtable'
     );
 
     logger.info('Ride logged to Airtable', { rideId: ride._id });
@@ -117,29 +150,31 @@ async function updateRideInAirtable(rideId, updates) {
   }
 
   try {
-    // First, find the record by Ride ID
-    const records = await base(airtableRidesTableName)
-      .select({
-        filterByFormula: `{Ride ID} = "${rideId}"`,
-        maxRecords: 1
-      })
-      .firstPage();
+    await withRetry(async () => {
+      // First, find the record by Ride ID
+      const records = await base(airtableRidesTableName)
+        .select({
+          filterByFormula: `{Ride ID} = "${rideId}"`,
+          maxRecords: 1
+        })
+        .firstPage();
 
-    if (records.length === 0) {
-      logger.warn('Ride not found in Airtable for update', { rideId });
-      return;
-    }
-
-    const recordId = records[0].id;
-
-    await base(airtableRidesTableName).update([
-      {
-        id: recordId,
-        fields: updates
+      if (records.length === 0) {
+        logger.warn('Ride not found in Airtable for update', { rideId });
+        return;
       }
-    ]);
 
-    logger.info('Ride updated in Airtable', { rideId, recordId });
+      const recordId = records[0].id;
+
+      await base(airtableRidesTableName).update([
+        {
+          id: recordId,
+          fields: updates
+        }
+      ]);
+
+      logger.info('Ride updated in Airtable', { rideId, recordId });
+    }, 'updateRideInAirtable');
   } catch (error) {
     logger.error('Failed to update ride in Airtable', {
       rideId,
@@ -150,20 +185,37 @@ async function updateRideInAirtable(rideId, updates) {
 
 /**
  * Log an SMS to the SMS Logs table in Airtable
+ * Idempotent based on Twilio message SID if provided in templateId
  * @param {Object} sms
  * @param {string} sms.rideId - Associated ride ID
  * @param {string} sms.direction - 'Inbound' or 'Outbound'
  * @param {string} sms.to - To phone number
  * @param {string} sms.from - From phone number
  * @param {string} sms.body - Message body
- * @param {string} sms.templateId - Template identifier (optional)
+ * @param {string} sms.templateId - Template identifier or Twilio message SID (optional)
  * @param {string} sms.deliveryStatus - 'Queued', 'Sent', 'Delivered', 'Failed'
+ * @param {string} sms.messageSid - Twilio message SID for idempotency (optional)
  */
-async function logSmsToAirtable({ rideId, direction, to, from, body, templateId = null, deliveryStatus = 'Sent' }) {
+async function logSmsToAirtable({ 
+  rideId, 
+  direction, 
+  to, 
+  from, 
+  body, 
+  templateId = null, 
+  deliveryStatus = 'Sent',
+  messageSid = null 
+}) {
   const base = getAirtableBase();
 
   if (!base) {
     logger.debug('Skipping Airtable SMS log because Airtable is not configured');
+    return;
+  }
+
+  // Check for duplicate based on messageSid (idempotency)
+  if (messageSid && smsLogCache.has(messageSid)) {
+    logger.debug('SMS already logged to Airtable (duplicate detected)', { messageSid });
     return;
   }
 
@@ -178,31 +230,38 @@ async function logSmsToAirtable({ rideId, direction, to, from, body, templateId 
       'Delivery status': deliveryStatus
     };
 
-    // Link to ride if rideId is provided
-    if (rideId) {
-      // Find the Airtable record ID for this ride
-      const rideRecords = await base(airtableRidesTableName)
-        .select({
-          filterByFormula: `{Ride ID} = "${rideId}"`,
-          maxRecords: 1
-        })
-        .firstPage();
-
-      if (rideRecords.length > 0) {
-        fields.Ride = [rideRecords[0].id];
-      }
+    // Add message SID if provided
+    if (messageSid) {
+      fields['Message SID'] = messageSid;
     }
 
-    await base(airtableSmsLogsTableName).create(
-      [
-        {
-          fields
-        }
-      ],
-      { typecast: true }
-    );
+    await withRetry(async () => {
+      // Link to ride if rideId is provided
+      if (rideId) {
+        // Find the Airtable record ID for this ride
+        const rideRecords = await base(airtableRidesTableName)
+          .select({
+            filterByFormula: `{Ride ID} = "${rideId}"`,
+            maxRecords: 1
+          })
+          .firstPage();
 
-    logger.info('SMS logged to Airtable', { direction, to, templateId });
+        if (rideRecords.length > 0) {
+          fields.Ride = [rideRecords[0].id];
+        }
+      }
+
+      await base(airtableSmsLogsTableName).create([{ fields }], { typecast: true });
+    }, 'logSmsToAirtable');
+
+    // Mark as logged for idempotency
+    if (messageSid) {
+      smsLogCache.add(messageSid);
+      // Cleanup cache after 1 hour to prevent memory leaks
+      setTimeout(() => smsLogCache.delete(messageSid), 3600000);
+    }
+
+    logger.info('SMS logged to Airtable', { direction, to, templateId, messageSid });
   } catch (error) {
     logger.error('Failed to log SMS to Airtable', {
       direction,

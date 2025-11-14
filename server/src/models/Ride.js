@@ -78,4 +78,10 @@ const rideSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Add compound indexes for frequently queried fields
+rideSchema.index({ status: 1, createdAt: -1 }); // For listing rides by status
+rideSchema.index({ driver: 1, status: 1 }); // For driver's active rides
+rideSchema.index({ rider: 1, createdAt: -1 }); // For rider's ride history
+rideSchema.index({ riderPhone: 1, wtpAsked: 1, wtpResponse: 1, createdAt: -1 }); // For WTP matching
+
 module.exports = mongoose.model('Ride', rideSchema);
