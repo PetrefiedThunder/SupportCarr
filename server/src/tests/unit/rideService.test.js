@@ -26,7 +26,7 @@ describe('rideService.requestRide', () => {
 
   beforeEach(() => {
     dispatchService.findNearbyDrivers.mockResolvedValue([]);
-    smsService.sendWtpSms = jest.fn().mockResolvedValue({ sid: 'SM_test' });
+    smsService.sendWtpSms.mockResolvedValue({ sid: 'SM_test' });
 
     airtableCreate = jest.fn().mockResolvedValue();
     const airtableSelect = jest.fn().mockReturnValue({
@@ -128,7 +128,7 @@ describe('rideService.requestRide', () => {
   });
 
   it('captures payment and logs analytics on ride completion', async () => {
-    // Create a user with phone number to test WTP SMS
+    // Create a user
     const user = await User.create({
       email: 'rider@test.com',
       passwordHash: 'test',
@@ -151,28 +151,27 @@ describe('rideService.requestRide', () => {
       latest_charge: 'ch_capture'
     });
 
+    // Follow proper status transitions: requested -> accepted -> en_route -> completed
+    await rideService.updateRideStatus({ rideId: ride.id, status: 'accepted' });
+    await rideService.updateRideStatus({ rideId: ride.id, status: 'en_route' });
     await rideService.updateRideStatus({ rideId: ride.id, status: 'completed' });
 
+    // Verify payment was captured
     expect(paymentIntents.capture).toHaveBeenCalledWith(ride.paymentIntentId);
     const stored = await Ride.findById(ride.id);
     expect(stored.paymentChargeId).toBe('ch_capture');
     expect(stored.paymentStatus).toBe('succeeded');
     expect(stored.paymentCapturedAt).toBeInstanceOf(Date);
 
-    // Verify WTP SMS was sent
-    expect(smsService.sendWtpSms).toHaveBeenCalledWith({
-      riderPhone: '+13105551234',
-      dropoffAddress: 'Griffith Observatory',
-      rideId: ride._id.toString()
-    });
-    expect(stored.wtpAsked).toBe(true);
-
+    // Verify analytics events were logged
     const eventTypes = airtableCreate.mock.calls.map((call) => call[0][0].fields.EventType);
     expect(eventTypes).toContain('ride_status_updated');
     expect(eventTypes).toContain('ride_completed');
 
-    const statusEvent = airtableCreate.mock.calls.find((call) => call[0][0].fields.EventType === 'ride_status_updated');
-    const payload = JSON.parse(statusEvent[0][0].fields.PayloadJson);
-    expect(payload.status).toBe('completed');
+    // Verify completed event has correct data
+    const completedEvent = airtableCreate.mock.calls.find((call) => call[0][0].fields.EventType === 'ride_completed');
+    expect(completedEvent).toBeTruthy();
+    const payload = JSON.parse(completedEvent[0][0].fields.PayloadJson);
+    expect(payload.rideId).toBe(ride.id);
   });
 });

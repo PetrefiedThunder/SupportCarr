@@ -203,7 +203,10 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId }) 
     });
 
     // Send WTP SMS if not already asked
-    if (!ride.wtpAsked && ride.rider?.phoneNumber && ride.dropoff?.address) {
+    // Note: wtpAsked might be undefined for old rides, so we check for both undefined and false
+    const shouldSendWtp = !ride.wtpAsked && ride.rider?.phoneNumber && ride.dropoff?.address;
+    
+    if (shouldSendWtp) {
       try {
         await smsService.sendWtpSms({
           riderPhone: ride.rider.phoneNumber,

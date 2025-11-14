@@ -40,17 +40,25 @@ const store = [];
 class RideQuery {
   constructor(doc) {
     this.doc = doc;
+    this.populatePaths = [];
   }
 
   populate(pathOrOptions) {
-    if (this.doc && typeof this.doc.populate === 'function') {
-      this.doc.populate(pathOrOptions);
-    }
+    this.populatePaths.push(pathOrOptions);
     return this;
   }
 
-  then(resolve, reject) {
-    return Promise.resolve(this.doc).then(resolve, reject);
+  async then(resolve, reject) {
+    try {
+      if (this.doc && typeof this.doc.populate === 'function') {
+        for (const pathOrOptions of this.populatePaths) {
+          await this.doc.populate(pathOrOptions);
+        }
+      }
+      resolve(this.doc);
+    } catch (error) {
+      reject(error);
+    }
   }
 }
 
