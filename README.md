@@ -28,13 +28,6 @@ server/     # Express API gateway, services, Mongoose models, Jest tests
             # - Stripe payment processing
             # - Airtable analytics sync
 
-backend/    # Legacy backend structure (being migrated to server/)
-
-services/   # Microservices architecture
-            # - API gateway
-            # - Payment service
-            # - Analytics service
-
 docs/       # Architecture, API reference, setup guides
             # - PILOT_SETUP.md - Santa Monica pilot configuration
             # - ARCHITECTURE.md - System design
