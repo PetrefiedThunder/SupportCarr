@@ -1,8 +1,10 @@
 const Ride = require('../models/Ride');
 const Driver = require('../models/Driver');
+const User = require('../models/User');
 const { findNearbyDrivers, triggerDriverNotification } = require('./dispatchService');
 const { ensureRidePaymentIntent, captureRidePayment } = require('./paymentService');
-const { logRideEvent } = require('./analyticsService');
+const { logRideEvent, logRideToAirtable, updateRideInAirtable } = require('./analyticsService');
+const smsService = require('./smsService');
 const rideEvents = require('../utils/rideEvents');
 const serializeRide = require('../utils/serializeRide');
 
@@ -84,7 +86,10 @@ async function attemptAutoAssignDriver(ride) {
 }
 
 async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId }) {
-  const ride = await Ride.findById(rideId).populate({ path: 'driver', populate: 'user' });
+  const ride = await Ride.findById(rideId)
+    .populate({ path: 'driver', populate: 'user' })
+    .populate('rider');
+
   if (!ride) {
     throw new Error('Ride not found');
   }
@@ -108,6 +113,30 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId }) 
       paymentChargeId: ride.paymentChargeId,
       paymentStatus: ride.paymentStatus
     });
+
+    // Send WTP SMS if not already asked
+    if (!ride.wtpAsked && ride.rider?.phoneNumber && ride.dropoff?.address) {
+      try {
+        await smsService.sendWtpSms({
+          riderPhone: ride.rider.phoneNumber,
+          dropoffAddress: ride.dropoff.address,
+          rideId: ride._id.toString()
+        });
+
+        // Mark WTP as asked
+        ride.wtpAsked = true;
+        await ride.save();
+
+        // Update Airtable
+        await updateRideInAirtable(ride._id.toString(), {
+          'WTP asked?': true,
+          'Completed at': new Date().toISOString()
+        });
+      } catch (error) {
+        // Log error but don't fail the ride completion
+        console.error('Failed to send WTP SMS:', error);
+      }
+    }
   }
 
   const serializedRide = serializeRide(ride);

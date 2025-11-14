@@ -56,7 +56,20 @@ const rideSchema = new mongoose.Schema(
       ]
     },
     paymentCapturedAt: Date,
-    lastPaymentError: String
+    lastPaymentError: String,
+    wtpAsked: {
+      type: Boolean,
+      default: false
+    },
+    wtpResponse: {
+      type: String,
+      enum: ['YES', 'NO', 'No reply', null],
+      default: null
+    },
+    wtpAmountUsd: {
+      type: Number,
+      default: null
+    }
   },
   { timestamps: true }
 );

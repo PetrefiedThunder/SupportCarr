@@ -33,6 +33,23 @@ class UserModel {
     return store.find((doc) => String(doc._id) === String(id)) || null;
   }
 
+  static async findByIdAndUpdate(id, update, options = {}) {
+    const doc = store.find((d) => String(d._id) === String(id));
+    if (!doc) {
+      if (options.upsert) {
+        const newDoc = new UserDocument({ ...update, _id: id });
+        store.push(newDoc);
+        return newDoc;
+      }
+      return null;
+    }
+    Object.assign(doc, update);
+    if (options.new) {
+      return doc;
+    }
+    return doc;
+  }
+
   static reset() {
     store.length = 0;
   }
