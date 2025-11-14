@@ -14,12 +14,14 @@ function verifyTwilioSignature(req, res, next) {
   const authToken = process.env.TWILIO_AUTH_TOKEN;
 
   // Skip verification in test mode or if Twilio is not configured
-  if (!authToken || process.env.NODE_ENV === 'test') {
-    if (process.env.NODE_ENV === 'test') {
-      logger.debug('Twilio signature verification skipped - test mode');
-    } else {
-      logger.warn('Twilio signature verification skipped - TWILIO_AUTH_TOKEN not set');
-    }
+  // SECURITY: Never bypass in production, even if NODE_ENV is accidentally set to 'test'
+  if (!authToken) {
+    logger.warn('Twilio signature verification skipped - TWILIO_AUTH_TOKEN not set');
+    return next();
+  }
+  
+  if (process.env.NODE_ENV === 'test') {
+    logger.debug('Twilio signature verification skipped - test mode');
     return next();
   }
 
@@ -38,7 +40,7 @@ function verifyTwilioSignature(req, res, next) {
     logger.error('Invalid Twilio signature', {
       url,
       // Mask signature for security (log only first 6 chars)
-      signature: twilioSignature ? `${twilioSignature.slice(0, 6)}...` : null
+      signature: twilioSignature ? `${twilioSignature.slice(0, Math.min(6, twilioSignature.length))}...` : null
     });
     // Return empty TwiML response but don't process the request
     return res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
