@@ -20,6 +20,9 @@
  */
 
 require('dotenv').config();
+// Force test mode to bypass Twilio signature verification
+process.env.NODE_ENV = process.env.NODE_ENV || 'test';
+
 const mongoose = require('mongoose');
 const User = require('../src/models/User');
 const Ride = require('../src/models/Ride');
