@@ -2,15 +2,21 @@ process.env.STRIPE_SECRET_KEY = 'sk_test_mocked';
 process.env.AIRTABLE_API_KEY = 'key_mocked';
 process.env.AIRTABLE_BASE_ID = 'base_mocked';
 process.env.AIRTABLE_RIDES_TABLE = 'RideEvents';
+process.env.TWILIO_ACCOUNT_SID = 'AC_mocked';
+process.env.TWILIO_AUTH_TOKEN = 'auth_mocked';
+process.env.TWILIO_FROM_NUMBER = '+15551234567';
 
 const Ride = require('../../models/Ride');
 const Driver = require('../../models/Driver');
+const User = require('../../models/User');
 const rideService = require('../../services/rideService');
 const dispatchService = require('../../services/dispatchService');
 const paymentService = require('../../services/paymentService');
 const analyticsService = require('../../services/analyticsService');
+const smsService = require('../../services/smsService');
 
 jest.mock('../../services/dispatchService');
+jest.mock('../../services/smsService');
 
 describe('rideService.requestRide', () => {
   let stripeClient;
@@ -20,8 +26,18 @@ describe('rideService.requestRide', () => {
 
   beforeEach(() => {
     dispatchService.findNearbyDrivers.mockResolvedValue([]);
+    smsService.sendWtpSms = jest.fn().mockResolvedValue({ sid: 'SM_test' });
+
     airtableCreate = jest.fn().mockResolvedValue();
-    airtableBase = jest.fn(() => ({ create: airtableCreate }));
+    const airtableSelect = jest.fn().mockReturnValue({
+      firstPage: jest.fn().mockResolvedValue([{ id: 'rec_test' }])
+    });
+    const airtableUpdate = jest.fn().mockResolvedValue();
+    airtableBase = jest.fn(() => ({
+      create: airtableCreate,
+      select: airtableSelect,
+      update: airtableUpdate
+    }));
     analyticsService.__setAirtableBase(airtableBase);
 
     paymentIntents = {
@@ -30,7 +46,11 @@ describe('rideService.requestRide', () => {
       update: jest.fn().mockResolvedValue({ id: 'pi_test', status: 'requires_capture' }),
       capture: jest.fn().mockResolvedValue({ id: 'pi_test', status: 'succeeded', latest_charge: 'ch_test' })
     };
-    stripeClient = { paymentIntents };
+    const customers = {
+      create: jest.fn().mockResolvedValue({ id: 'cus_test' }),
+      retrieve: jest.fn().mockResolvedValue({ id: 'cus_test' })
+    };
+    stripeClient = { paymentIntents, customers };
     paymentService.__setStripeClient(stripeClient);
   });
 
@@ -41,8 +61,16 @@ describe('rideService.requestRide', () => {
   });
 
   it('creates a ride with tiered pricing', async () => {
+    const user = await User.create({
+      email: 'rider1@test.com',
+      passwordHash: 'test',
+      name: 'Test Rider 1',
+      phoneNumber: '+13105551111',
+      role: 'rider'
+    });
+
     const ride = await rideService.requestRide({
-      riderId: '507f1f77bcf86cd799439011',
+      riderId: user._id,
       pickup: { lat: 34.078, lng: -118.261, address: 'Echo Park Lake' },
       dropoff: { lat: 34.092, lng: -118.328, address: 'Griffith Observatory' },
       bikeType: 'ebike'
@@ -63,8 +91,24 @@ describe('rideService.requestRide', () => {
   });
 
   it('attempts to auto assign drivers when available', async () => {
+    const user = await User.create({
+      email: 'rider2@test.com',
+      passwordHash: 'test',
+      name: 'Test Rider 2',
+      phoneNumber: '+13105552222',
+      role: 'rider'
+    });
+
+    const driverUser = await User.create({
+      email: 'driver@test.com',
+      passwordHash: 'test',
+      name: 'Test Driver',
+      phoneNumber: '+13105559999',
+      role: 'driver'
+    });
+
     const driver = await Driver.create({
-      user: '507f1f77bcf86cd799439012',
+      user: driverUser._id,
       vehicleType: 'van',
       active: true,
       currentLocation: { lat: 34.07, lng: -118.25 }
@@ -73,7 +117,7 @@ describe('rideService.requestRide', () => {
     dispatchService.findNearbyDrivers.mockResolvedValue([driver.id]);
 
     const ride = await rideService.requestRide({
-      riderId: '507f1f77bcf86cd799439011',
+      riderId: user._id,
       pickup: { lat: 34.078, lng: -118.261, address: 'Echo Park Lake' },
       dropoff: { lat: 34.092, lng: -118.328, address: 'Griffith Observatory' },
       bikeType: 'bike'
@@ -84,8 +128,17 @@ describe('rideService.requestRide', () => {
   });
 
   it('captures payment and logs analytics on ride completion', async () => {
+    // Create a user with phone number to test WTP SMS
+    const user = await User.create({
+      email: 'rider@test.com',
+      passwordHash: 'test',
+      name: 'Test Rider',
+      phoneNumber: '+13105551234',
+      role: 'rider'
+    });
+
     const ride = await rideService.requestRide({
-      riderId: '507f1f77bcf86cd799439011',
+      riderId: user._id,
       pickup: { lat: 34.078, lng: -118.261, address: 'Echo Park Lake' },
       dropoff: { lat: 34.092, lng: -118.328, address: 'Griffith Observatory' },
       bikeType: 'ebike'
@@ -105,6 +158,14 @@ describe('rideService.requestRide', () => {
     expect(stored.paymentChargeId).toBe('ch_capture');
     expect(stored.paymentStatus).toBe('succeeded');
     expect(stored.paymentCapturedAt).toBeInstanceOf(Date);
+
+    // Verify WTP SMS was sent
+    expect(smsService.sendWtpSms).toHaveBeenCalledWith({
+      riderPhone: '+13105551234',
+      dropoffAddress: 'Griffith Observatory',
+      rideId: ride._id.toString()
+    });
+    expect(stored.wtpAsked).toBe(true);
 
     const eventTypes = airtableCreate.mock.calls.map((call) => call[0][0].fields.EventType);
     expect(eventTypes).toContain('ride_status_updated');

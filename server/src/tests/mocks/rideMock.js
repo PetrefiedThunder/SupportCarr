@@ -1,5 +1,6 @@
 const { generateId, matches } = require('./utils');
 const Driver = require('./driverMock');
+const User = require('./userMock');
 
 class RideDocument {
   constructor(doc) {
@@ -16,13 +17,19 @@ class RideDocument {
     return this;
   }
 
-  async populate({ path, populate }) {
+  async populate(pathOrOptions) {
+    const path = typeof pathOrOptions === 'string' ? pathOrOptions : pathOrOptions.path;
+    const nestedPopulate = typeof pathOrOptions === 'object' ? pathOrOptions.populate : null;
+
     if (path === 'driver') {
       const driver = await Driver.findById(this.driver);
-      if (driver && populate) {
-        await driver.populate(populate);
+      if (driver && nestedPopulate) {
+        await driver.populate(nestedPopulate);
       }
       this.driver = driver;
+    } else if (path === 'rider') {
+      const rider = await User.findById(this.rider);
+      this.rider = rider;
     }
     return this;
   }
@@ -35,9 +42,9 @@ class RideQuery {
     this.doc = doc;
   }
 
-  async populate(options) {
+  populate(pathOrOptions) {
     if (this.doc && typeof this.doc.populate === 'function') {
-      await this.doc.populate(options);
+      this.doc.populate(pathOrOptions);
     }
     return this;
   }

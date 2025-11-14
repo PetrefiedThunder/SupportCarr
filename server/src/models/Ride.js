@@ -7,6 +7,10 @@ const rideSchema = new mongoose.Schema(
       ref: 'User',
       required: true
     },
+    riderPhone: {
+      type: String,
+      index: true
+    },
     driver: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Driver',
@@ -56,7 +60,20 @@ const rideSchema = new mongoose.Schema(
       ]
     },
     paymentCapturedAt: Date,
-    lastPaymentError: String
+    lastPaymentError: String,
+    wtpAsked: {
+      type: Boolean,
+      default: false
+    },
+    wtpResponse: {
+      type: String,
+      enum: ['YES', 'NO', 'No reply', null],
+      default: null
+    },
+    wtpAmountUsd: {
+      type: Number,
+      default: null
+    }
   },
   { timestamps: true }
 );
