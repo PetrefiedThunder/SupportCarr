@@ -1,6 +1,8 @@
 # SupportCarr Monorepo
 
-SupportCarr delivers a production-ready full-stack platform for on-demand e-bike and bicycle rescue service. The project powers the Santa Monica pilot with advanced features including real-time tracking, automated SMS surveys, Airtable analytics, and Stripe payments. Built with Express + MongoDB backend, React + Vite PWA frontend, comprehensive testing, CI/CD automation, and complete production deployment infrastructure.
+SupportCarr is a production-ready full-stack platform for on-demand e-bike and bicycle rescue service. The project powers the Santa Monica pilot with advanced features including real-time tracking, automated SMS surveys, Airtable analytics, and Stripe payments. 
+
+Built with Express + MongoDB backend, React + Vite PWA frontend, comprehensive testing, CI/CD automation, and complete production deployment infrastructure.
 
 ## 🎯 Project Status
 
@@ -60,7 +62,7 @@ The API listens on `http://localhost:4000`; the PWA runs on `http://localhost:51
 - **PII Documentation** - Clear data handling and compliance guidelines
 
 ### 🚴 Core Ride Management
-- **Ride Lifecycle Management** - Complete breakdown request to completion workflow
+- **Ride Lifecycle Management** - Complete breakdown request-to-completion workflow
 - **Redis-backed Driver Matching** - Geospatial matching with Haversine distance (PR #30)
 - **Real-Time Updates** - Server-sent events for live ride tracking (PR #25)
 - **Address Autocomplete** - Google Maps integration for seamless location entry (PR #24)
@@ -101,11 +103,11 @@ The API listens on `http://localhost:4000`; the PWA runs on `http://localhost:51
 
 ```bash
 # Development
-npm test                             # run backend + frontend tests
-npm run lint                         # lint both workspaces
-npm run build                        # build the PWA for production
-npm --workspace server run seed      # seed MongoDB and Redis with demo data
-node server/src/utils/demoScript.js  # simulate end-to-end breakdown workflow
+npm test                              # run backend + frontend tests
+npm run lint                          # lint both workspaces
+npm run build                         # build the PWA for production
+npm --workspace server run seed       # seed MongoDB and Redis with demo data
+node server/src/utils/demoScript.js   # simulate end-to-end breakdown workflow
 
 # Santa Monica Pilot Testing
 node server/scripts/test-wtp-flow.js +1YOUR_PHONE        # test WTP SMS with real phone
@@ -139,7 +141,7 @@ The Santa Monica pilot (PR #31) includes a production-ready **Willingness To Pay
 ### 📊 How It Works
 
 1. **Ride Completion** - When a ride status changes to `completed`
-2. **Automatic SMS** - System sends WTP survey via Twilio: *"Would you pay $25 for this service?"*
+2. **Automated SMS** - System sends WTP survey via Twilio: *"Would you pay $25 for this service?"*
 3. **Rider Response** - Rider replies YES, NO, or a custom price (e.g., "30" or "$25")
 4. **Data Capture** - Response stored in MongoDB and synced to Airtable for analysis
 5. **Conversation Logs** - All SMS interactions logged in Airtable with ride linkage
@@ -201,7 +203,10 @@ SupportCarr has evolved through **31 merged pull requests** covering:
 - **3 Critical Bug Fixes** - Distance calculation, geo handling, and schema issues
 - **6 Documentation Updates** - Comprehensive guides and API references
 - **3 CI/CD Implementations** - Automated testing and quality checks
-- **Multiple Refactoring PRs** - Code quality and architecture improvements
+- **2 Refactoring PRs** - Code quality and architecture improvements
+- **1 Security Enhancement** - Input validation and error handling
+- **1 Planning Document** - Sprint planning and roadmap
+- **Additional PRs** - Configuration, testing, and tooling improvements
 
 See the complete **[PR Catalog & Labels](PR_LABELS.md)** for:
 - Detailed description of each PR
