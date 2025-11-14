@@ -369,6 +369,90 @@ Once the pilot is working:
 
 ---
 
+## Security & Data Integrity
+
+### Twilio Signature Verification
+
+The system validates all inbound webhook requests using Twilio's `X-Twilio-Signature` header to prevent spoofed requests.
+
+**How it works:**
+- Every request to `/api/twilio/inbound` is verified against the signature
+- If `TWILIO_AUTH_TOKEN` is not set, verification is skipped (dev mode only)
+- Invalid signatures are logged and ignored (but return 200 to Twilio)
+
+**Why this matters:**
+- Prevents anyone from POSTing fake SMS data to corrupt WTP metrics
+- Critical for data integrity when making pricing decisions
+- Essential if you add driver SMS commands (ARRIVED, DROP, etc.)
+
+### PII and Third-Party Storage
+
+**Data being stored:**
+- **Phone numbers** (E.164 format) in MongoDB, Twilio, and Airtable
+- **Addresses** (pickup/dropoff) in MongoDB and Airtable
+- **SMS message bodies** in Airtable SMS Logs
+
+**Storage locations:**
+- **MongoDB**: Your infrastructure (full control)
+- **Twilio**: SMS logs stored in Twilio (US data centers by default)
+- **Airtable**: SaaS storage (check current data residency in Airtable settings)
+
+**Compliance considerations:**
+1. **Data retention**: Plan to export and delete Airtable data after pilot ends
+2. **Access control**: Limit Airtable base access to minimum necessary users
+3. **Privacy notices**: Inform riders that phone numbers are stored for pilot measurement
+4. **Geographic considerations**: Be aware of GDPR/CCPA if riders are in EU/CA
+
+**Recommended practices:**
+- Document what PII goes where in your internal docs
+- Set a pilot end date and schedule data deletion
+- Don't share the Airtable base link organization-wide
+- Consider anonymizing phone numbers in logs after pilot (keep last 4 digits only)
+
+### Airtable Data Linkage
+
+**How rides are linked between MongoDB and Airtable:**
+
+The `Ride ID` field in Airtable stores the MongoDB `_id` value. This allows:
+- Finding Airtable records to update WTP responses
+- Linking SMS Logs to the correct Ride record
+
+**Critical requirements:**
+1. Never manually edit the `Ride ID` field in Airtable
+2. If you manually create test rides in Airtable, they won't link to MongoDB
+3. SMS Logs are linked via the `Ride` link field (auto-populated by code)
+
+**Data consistency:**
+- MongoDB is the source of truth
+- Airtable is a read-optimized view for pilot measurement
+- If data conflicts, MongoDB wins
+
+### Multi-Rider WTP Matching
+
+**How inbound SMS replies are matched to rides:**
+
+The system queries `Ride` records by `riderPhone` field to find the most recent ride where:
+- `wtpAsked = true`
+- `wtpResponse = null` (not yet answered)
+- `riderPhone` matches the sender's phone number
+
+**Why this matters:**
+- If multiple riders have open WTP questions, each reply goes to the correct ride
+- No cross-contamination between riders
+- Most recent unanswered ride wins (important if a rider has multiple rescues)
+
+**Test this scenario:**
+```bash
+# Run the multi-rider test
+node server/scripts/test-multi-rider-wtp.js
+```
+
+This test verifies that when Rider A and Rider B both have open WTP questions:
+- Rider A's reply updates Rider A's ride only
+- Rider B's reply updates Rider B's ride only
+
+---
+
 ## Support
 
 For issues or questions:

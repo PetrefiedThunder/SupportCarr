@@ -14,10 +14,14 @@ function calculatePrice(distanceMiles) {
 }
 
 async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
+  // Get rider's phone number for denormalized storage
+  const rider = await User.findById(riderId);
+
   const distanceMiles = estimateDistanceMiles(pickup, dropoff);
   const priceCents = calculatePrice(distanceMiles);
   const ride = await Ride.create({
     rider: riderId,
+    riderPhone: rider?.phoneNumber || null,
     pickup,
     dropoff,
     bikeType,

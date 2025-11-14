@@ -7,6 +7,10 @@ const rideSchema = new mongoose.Schema(
       ref: 'User',
       required: true
     },
+    riderPhone: {
+      type: String,
+      index: true
+    },
     driver: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Driver',
