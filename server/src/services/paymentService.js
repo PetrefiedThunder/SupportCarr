@@ -30,7 +30,7 @@ async function ensureStripeCustomer({ user }) {
       // Verify the customer still exists
       await stripe.customers.retrieve(user.stripeCustomerId);
       return user.stripeCustomerId;
-    } catch (error) {
+    } catch {
       // Customer doesn't exist, create a new one
       logger.warn('Stripe customer not found, creating new one', {
         userId: user.id,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import client from '../api/httpClient';
 import { useSessionStore } from '../store/useSessionStore.js';
 
@@ -8,7 +8,7 @@ export default function DriverDashboard() {
   const driverSession = useSessionStore((state) => state.sessions.driver || {});
   const driverProfileId = driverSession.driverProfile?._id;
 
-  const fetchRides = async () => {
+  const fetchRides = useCallback(async () => {
     if (!driverProfileId) return;
     setLoading(true);
     try {
@@ -17,7 +17,7 @@ export default function DriverDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [driverProfileId]);
 
   const updateStatus = async (rideId, status) => {
     await client.patch(`/rides/${rideId}`, { status });
@@ -26,7 +26,7 @@ export default function DriverDashboard() {
 
   useEffect(() => {
     fetchRides();
-  }, [driverProfileId]);
+  }, [driverProfileId, fetchRides]);
 
   return (
     <section className="space-y-4">
