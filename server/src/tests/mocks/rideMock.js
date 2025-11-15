@@ -7,6 +7,11 @@ class RideDocument {
     Object.assign(this, doc);
     this._id = doc._id || generateId();
     this.createdAt = doc.createdAt || new Date();
+    // Store original references before population
+    this._originalRefs = {
+      rider: doc.rider,
+      driver: doc.driver
+    };
   }
 
   get id() {
@@ -86,7 +91,21 @@ class RideModel {
   static find(query = {}) {
     const results = store.filter((doc) => matches(doc, query));
     return {
-      sort() {
+      sort(sortOptions) {
+        // Sort the results if sortOptions provided
+        if (sortOptions) {
+          const sortKey = Object.keys(sortOptions)[0];
+          const sortOrder = sortOptions[sortKey];
+          results.sort((a, b) => {
+            const aVal = a[sortKey];
+            const bVal = b[sortKey];
+            if (sortOrder === -1) {
+              return bVal > aVal ? 1 : -1;
+            } else {
+              return aVal > bVal ? 1 : -1;
+            }
+          });
+        }
         return Promise.resolve(results.slice());
       }
     };
