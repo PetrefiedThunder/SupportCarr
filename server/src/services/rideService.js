@@ -56,7 +56,7 @@ function validateLocation(location, fieldName) {
   }
 }
 
-function calculatePrice(distanceMiles) { // eslint-disable-line no-unused-vars
+function calculatePrice() {
   // Flat rate: $50 for all rides regardless of distance
   return 5000;
 }
@@ -86,7 +86,7 @@ async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
   }
 
   const distanceMiles = estimateDistanceMiles(pickup, dropoff);
-  const priceCents = calculatePrice(distanceMiles);
+  const priceCents = calculatePrice();
   const ride = await Ride.create({
     rider: riderId,
     riderPhone: rider.phoneNumber,
