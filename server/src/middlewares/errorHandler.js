@@ -1,6 +1,6 @@
 const logger = require('../config/logger');
 
-function errorHandler(err, req, res, next) {
+function errorHandler(err, req, res) {
   logger.error('Request failed', { error: err.message, stack: err.stack });
   if (err.isJoi) {
     return res.status(400).json({ message: err.message, details: err.details });
