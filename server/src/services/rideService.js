@@ -86,7 +86,7 @@ async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
   }
 
   const distanceMiles = estimateDistanceMiles(pickup, dropoff);
-  const priceCents = calculatePrice(distanceMiles);
+  const priceCents = calculatePrice();
   const ride = await Ride.create({
     rider: riderId,
     riderPhone: rider.phoneNumber,

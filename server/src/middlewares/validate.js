@@ -1,3 +1,5 @@
+// Validation middleware - Joi validation is handled by route-specific validators
+
 function validate(schema) {
   return async (req, res, next) => {
     try {
