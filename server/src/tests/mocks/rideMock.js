@@ -19,22 +19,14 @@ class RideDocument {
   }
 
   async save() {
-    // Update the stored document with current values
-    // Don't replace the entire object to preserve all fields
-    const index = store.findIndex((doc) => String(doc._id) === String(this._id));
-    if (index >= 0) {
-      // Merge current values into the stored document
-      Object.keys(this).forEach(key => {
-        if (key.startsWith('_')) return; // Skip internal fields
-        let value = this[key];
-        // If a ref field has been populated (is now an object with _id), save the ID instead
-        if ((key === 'rider' || key === 'driver') && value && typeof value === 'object' && value._id) {
-          value = value._id;
-        }
-        if (value !== undefined) {
-          store[index][key] = value;
-        }
-      });
+    // Check if this document is already in the store
+    const existingIndex = store.findIndex((doc) => String(doc._id) === String(this._id));
+    if (existingIndex >= 0) {
+      // Update existing document in store
+      store[existingIndex] = this;
+    } else {
+      // Add new document to store
+      store.push(this);
     }
     return this;
   }
@@ -123,17 +115,15 @@ class RideModel {
     const results = store.filter((doc) => matches(doc, query));
     return {
       sort(sortOptions) {
-        // Sort by the sort options if provided
+        // Simple sort by createdAt descending if sortOptions includes createdAt: -1
         if (sortOptions && sortOptions.createdAt === -1) {
           results.sort((a, b) => b.createdAt - a.createdAt);
-        } else if (sortOptions && sortOptions.createdAt === 1) {
-          results.sort((a, b) => a.createdAt - b.createdAt);
         }
         return this;
       },
       then(resolve, reject) {
         try {
-          resolve(results[0] || null);
+          resolve(results.length > 0 ? results[0] : null);
         } catch (error) {
           reject(error);
         }
