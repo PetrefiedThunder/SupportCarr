@@ -26,6 +26,7 @@ export default function DriverDashboard() {
 
   useEffect(() => {
     fetchRides();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driverProfileId]);
 
   return (

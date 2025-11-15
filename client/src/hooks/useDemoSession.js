@@ -25,7 +25,7 @@ async function ensureAccount(payload) {
       password: payload.password
     });
     return data;
-  } catch (error) {
+  } catch {
     const { data } = await client.post('/auth/register', payload);
     return data;
   }
@@ -56,7 +56,7 @@ export function useDemoSession() {
           { headers: { Authorization: `Bearer ${driverSession.accessToken}` } }
         );
         setSession('driver', { ...driverSession, driverProfile });
-      } catch (error) {
+      } catch {
         // profile probably exists
         setSession('driver', driverSession);
       }
