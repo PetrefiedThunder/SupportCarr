@@ -14,6 +14,15 @@ class RideDocument {
   }
 
   async save() {
+    // Check if this document is already in the store
+    const existingIndex = store.findIndex((doc) => String(doc._id) === String(this._id));
+    if (existingIndex >= 0) {
+      // Update existing document in store
+      store[existingIndex] = this;
+    } else {
+      // Add new document to store
+      store.push(this);
+    }
     return this;
   }
 
@@ -79,6 +88,26 @@ class RideModel {
     return {
       sort() {
         return Promise.resolve(results.slice());
+      }
+    };
+  }
+
+  static findOne(query = {}) {
+    const results = store.filter((doc) => matches(doc, query));
+    return {
+      sort(sortOptions) {
+        // Simple sort by createdAt descending if sortOptions includes createdAt: -1
+        if (sortOptions && sortOptions.createdAt === -1) {
+          results.sort((a, b) => b.createdAt - a.createdAt);
+        }
+        return this;
+      },
+      then(resolve, reject) {
+        try {
+          resolve(results.length > 0 ? results[0] : null);
+        } catch (error) {
+          reject(error);
+        }
       }
     };
   }
