@@ -2,7 +2,7 @@ let metaEnv = {};
 
 try {
   metaEnv = eval('import.meta');
-} catch (error) {
+} catch {
   metaEnv = { env: {} };
 }
 

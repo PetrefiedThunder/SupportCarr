@@ -56,7 +56,7 @@ function validateLocation(location, fieldName) {
   }
 }
 
-function calculatePrice(distanceMiles) {
+function calculatePrice() {
   // Flat rate: $50 for all rides regardless of distance
   return 5000;
 }
