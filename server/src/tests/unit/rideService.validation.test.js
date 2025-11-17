@@ -206,7 +206,7 @@ describe('rideService validation and FSM', () => {
         riderPhone: user.phoneNumber,
         pickup: { lat: 34.0, lng: -118.0, address: '123 Main St' },
         dropoff: { lat: 34.1, lng: -118.1, address: '456 Oak Ave' },
-        bikeType: 'bike',
+        bikeType: 'analog',
         status: 'requested',
         distanceMiles: 5,
         priceCents: 5000,
@@ -287,10 +287,10 @@ describe('rideService validation and FSM', () => {
 
     it('exports VALID_BIKE_TYPES', () => {
       expect(rideService.VALID_BIKE_TYPES).toBeDefined();
-      expect(rideService.VALID_BIKE_TYPES).toContain('bike');
+      expect(rideService.VALID_BIKE_TYPES).toContain('analog');
       expect(rideService.VALID_BIKE_TYPES).toContain('ebike');
       expect(rideService.VALID_BIKE_TYPES).toContain('cargo');
-      expect(rideService.VALID_BIKE_TYPES).toContain('other');
+      expect(rideService.VALID_BIKE_TYPES).toContain('folding');
     });
   });
 });

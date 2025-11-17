@@ -33,7 +33,7 @@ const rideCreationSchema = Joi.object({
   body: Joi.object({
     pickup: locationSchema.required(),
     dropoff: locationSchema.required(),
-    bikeType: Joi.string().valid('bike', 'ebike', 'cargo', 'other').required(),
+    bikeType: Joi.string().valid('analog', 'ebike', 'cargo', 'folding').required(),
     notes: Joi.string().allow('', null)
   })
 });
@@ -44,7 +44,10 @@ const rideUpdateSchema = Joi.object({
   }),
   body: Joi.object({
     status: Joi.string().valid('accepted', 'en_route', 'completed', 'cancelled').required(),
-    driverEtaMinutes: Joi.number().min(0).allow(null)
+    driverEtaMinutes: Joi.number().min(0).allow(null),
+    cancellationReason: Joi.string().valid('rider_request', 'driver_unavailable', 'damaged_battery', 'hazmat', 'other').allow(null),
+    assistRequired: Joi.boolean(),
+    assistReason: Joi.string().valid('physical_help', 'equipment_issue', 'navigation', 'other').allow(null)
   })
 });
 
