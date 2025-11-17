@@ -24,7 +24,8 @@ async function updateRide(req, res, next) {
       rideId: req.params.rideId,
       status: req.body.status,
       driverEtaMinutes: req.body.driverEtaMinutes,
-      driverId: req.body.driverId
+      driverId: req.body.driverId,
+      cancellationReason: req.body.cancellationReason
     });
     res.json(ride);
   } catch (error) {
