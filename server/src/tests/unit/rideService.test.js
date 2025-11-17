@@ -120,7 +120,7 @@ describe('rideService.requestRide', () => {
       riderId: user._id,
       pickup: { lat: 34.078, lng: -118.261, address: 'Echo Park Lake' },
       dropoff: { lat: 34.092, lng: -118.328, address: 'Griffith Observatory' },
-      bikeType: 'bike'
+      bikeType: 'analog'
     });
 
     expect(ride.status).toBe('accepted');
