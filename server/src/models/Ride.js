@@ -28,8 +28,8 @@ const rideSchema = new mongoose.Schema(
     },
     bikeType: {
       type: String,
-      enum: ['bike', 'ebike', 'cargo', 'other'],
-      default: 'bike'
+      enum: ['analog', 'ebike', 'cargo', 'folding'],
+      default: 'analog'
     },
     distanceMiles: Number,
     priceCents: Number,
@@ -51,7 +51,7 @@ const rideSchema = new mongoose.Schema(
     },
     cancellationReason: {
       type: String,
-      enum: ['rider_noshow', 'safety', 'geofence', 'other', null],
+      enum: ['rider_noshow', 'safety', 'geofence', 'rider_request', 'driver_unavailable', 'damaged_battery', 'hazmat', 'other', null],
       default: null
     },
     driverEtaMinutes: {
@@ -88,6 +88,15 @@ const rideSchema = new mongoose.Schema(
     },
     wtpAmountUsd: {
       type: Number,
+      default: null
+    },
+    assistRequired: {
+      type: Boolean,
+      default: false
+    },
+    assistReason: {
+      type: String,
+      enum: ['physical_help', 'equipment_issue', 'navigation', 'other', null],
       default: null
     }
   },

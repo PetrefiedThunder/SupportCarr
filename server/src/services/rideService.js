@@ -22,7 +22,7 @@ const VALID_STATUS_TRANSITIONS = {
   rejected_geofence: [] // Terminal state
 };
 
-const VALID_BIKE_TYPES = ['bike', 'ebike', 'cargo', 'other'];
+const VALID_BIKE_TYPES = ['analog', 'ebike', 'cargo', 'folding'];
 
 /**
  * Validate if a status transition is allowed
@@ -91,13 +91,19 @@ async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
   }
 
   const distanceMiles = estimateDistanceMiles(pickup, dropoff);
+  
+  // Enforce 10-mile pilot program limit
+  if (distanceMiles > 10.0) {
+    throw new Error('Trip exceeds pilot 10-mile limit');
+  }
+  
   const priceCents = calculatePrice();
   const ride = await Ride.create({
     rider: riderId,
     riderPhone: rider.phoneNumber,
     pickup,
     dropoff,
-    bikeType: bikeType || 'bike',
+    bikeType: bikeType || 'analog',
     status: 'requested',
     distanceMiles,
     priceCents,
@@ -162,7 +168,7 @@ async function attemptAutoAssignDriver(ride) {
   return ride;
 }
 
-async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, cancellationReason }) {
+async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, cancellationReason, assistRequired, assistReason }) {
   // Input validation
   if (!rideId) {
     throw new Error('rideId is required');
@@ -187,7 +193,7 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, ca
   ride.status = status;
   
   // Set cancellation reason for cancelled/rejected statuses
-  if (cancellationReason) {
+  if (cancellationReason !== undefined) {
     ride.cancellationReason = cancellationReason;
   }
   
@@ -199,6 +205,12 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, ca
   }
   if (driverId !== undefined) {
     ride.driver = driverId;
+  }
+  if (assistRequired !== undefined) {
+    ride.assistRequired = assistRequired;
+  }
+  if (assistReason !== undefined) {
+    ride.assistReason = assistReason;
   }
   await ride.save();
   await logRideEvent({ type: 'ride_status_updated', rideId: ride.id, status });

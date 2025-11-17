@@ -36,6 +36,10 @@ function getCancelledStatus(reason) {
     'rider_noshow': 'Cancelled – Rider no-show',
     'safety': 'Cancelled – Safety',
     'geofence': 'Rejected – Geofence',
+    'rider_request': 'Cancelled – Rider no-show', // Maps to no-show for Airtable
+    'driver_unavailable': 'Cancelled – Safety', // Maps to safety for operational reasons
+    'damaged_battery': 'Cancelled – Safety', // Maps to safety for equipment issues
+    'hazmat': 'Cancelled – Safety', // Maps to safety for hazmat issues
     'other': 'Cancelled – Rider no-show' // Default to no-show for backwards compatibility
   };
 

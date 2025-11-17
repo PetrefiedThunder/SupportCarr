@@ -42,6 +42,13 @@ describe('airtableStatusMapper', () => {
       expect(getCancelledStatus('other')).toBe('Cancelled – Rider no-show');
     });
 
+    it('maps new pilot program cancellation reasons correctly', () => {
+      expect(getCancelledStatus('rider_request')).toBe('Cancelled – Rider no-show');
+      expect(getCancelledStatus('driver_unavailable')).toBe('Cancelled – Safety');
+      expect(getCancelledStatus('damaged_battery')).toBe('Cancelled – Safety');
+      expect(getCancelledStatus('hazmat')).toBe('Cancelled – Safety');
+    });
+
     it('defaults to no-show for unknown reasons', () => {
       expect(getCancelledStatus(null)).toBe('Cancelled – Rider no-show');
       expect(getCancelledStatus(undefined)).toBe('Cancelled – Rider no-show');
