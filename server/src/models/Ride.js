@@ -35,8 +35,24 @@ const rideSchema = new mongoose.Schema(
     priceCents: Number,
     status: {
       type: String,
-      enum: ['requested', 'accepted', 'en_route', 'completed', 'cancelled'],
+      enum: [
+        'requested',
+        'accepted',
+        'en_route',
+        'arrived',
+        'in_transit',
+        'completed',
+        'cancelled',
+        'cancelled_rider_noshow',
+        'cancelled_safety',
+        'rejected_geofence'
+      ],
       default: 'requested'
+    },
+    cancellationReason: {
+      type: String,
+      enum: ['rider_noshow', 'safety', 'geofence', 'other', null],
+      default: null
     },
     driverEtaMinutes: {
       type: Number,
