@@ -206,6 +206,9 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, ca
   if (driverId !== undefined) {
     ride.driver = driverId;
   }
+  if (cancellationReason !== undefined) {
+    ride.cancellationReason = cancellationReason;
+  }
   if (assistRequired !== undefined) {
     ride.assistRequired = assistRequired;
   }

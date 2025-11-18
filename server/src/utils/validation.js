@@ -43,28 +43,9 @@ const rideUpdateSchema = Joi.object({
     rideId: Joi.string().required()
   }),
   body: Joi.object({
-    status: Joi.string().valid(
-      'accepted',
-      'en_route',
-      'arrived',
-      'in_transit',
-      'completed',
-      'cancelled',
-      'cancelled_rider_noshow',
-      'cancelled_safety',
-      'rejected_geofence'
-    ).required(),
+    status: Joi.string().valid('accepted', 'en_route', 'completed', 'cancelled').required(),
     driverEtaMinutes: Joi.number().min(0).allow(null),
-    cancellationReason: Joi.string().valid(
-      'rider_noshow',
-      'safety',
-      'geofence',
-      'rider_request',
-      'driver_unavailable',
-      'damaged_battery',
-      'hazmat',
-      'other'
-    ).allow(null),
+    cancellationReason: Joi.string().valid('rider_request', 'driver_unavailable', 'damaged_battery', 'hazmat', 'other').allow(null),
     assistRequired: Joi.boolean(),
     assistReason: Joi.string().valid('physical_help', 'equipment_issue', 'navigation', 'other').allow(null)
   })

@@ -51,7 +51,7 @@ const rideSchema = new mongoose.Schema(
     },
     cancellationReason: {
       type: String,
-      enum: ['rider_noshow', 'safety', 'geofence', 'rider_request', 'driver_unavailable', 'damaged_battery', 'hazmat', 'other', null],
+      enum: ['rider_request', 'driver_unavailable', 'damaged_battery', 'hazmat', 'other', null],
       default: null
     },
     driverEtaMinutes: {
