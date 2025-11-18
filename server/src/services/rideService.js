@@ -10,11 +10,16 @@ const serializeRide = require('../utils/serializeRide');
 
 // Finite state machine for ride status transitions
 const VALID_STATUS_TRANSITIONS = {
-  requested: ['accepted', 'cancelled'],
-  accepted: ['en_route', 'cancelled'],
-  en_route: ['completed', 'cancelled'],
+  requested: ['accepted', 'cancelled', 'cancelled_rider_noshow', 'cancelled_safety', 'rejected_geofence'],
+  accepted: ['en_route', 'arrived', 'cancelled', 'cancelled_rider_noshow', 'cancelled_safety'],
+  en_route: ['arrived', 'in_transit', 'completed', 'cancelled', 'cancelled_rider_noshow', 'cancelled_safety'],
+  arrived: ['in_transit', 'completed', 'cancelled', 'cancelled_rider_noshow', 'cancelled_safety'],
+  in_transit: ['completed', 'cancelled', 'cancelled_rider_noshow', 'cancelled_safety'],
   completed: [], // Terminal state
-  cancelled: [] // Terminal state
+  cancelled: [], // Terminal state
+  cancelled_rider_noshow: [], // Terminal state
+  cancelled_safety: [], // Terminal state
+  rejected_geofence: [] // Terminal state
 };
 
 const VALID_BIKE_TYPES = ['analog', 'ebike', 'cargo', 'folding'];
@@ -186,6 +191,12 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, ca
   }
 
   ride.status = status;
+  
+  // Set cancellation reason for cancelled/rejected statuses
+  if (cancellationReason !== undefined) {
+    ride.cancellationReason = cancellationReason;
+  }
+  
   if (driverEtaMinutes !== undefined) {
     if (typeof driverEtaMinutes !== 'number' || driverEtaMinutes < 0) {
       throw new Error('driverEtaMinutes must be a non-negative number');

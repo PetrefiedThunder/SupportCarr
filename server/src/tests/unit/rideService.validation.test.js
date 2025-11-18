@@ -54,10 +54,18 @@ describe('rideService validation and FSM', () => {
     it('allows valid transitions', () => {
       expect(() => rideService.validateStatusTransition('requested', 'accepted')).not.toThrow();
       expect(() => rideService.validateStatusTransition('requested', 'cancelled')).not.toThrow();
+      expect(() => rideService.validateStatusTransition('requested', 'cancelled_rider_noshow')).not.toThrow();
+      expect(() => rideService.validateStatusTransition('requested', 'rejected_geofence')).not.toThrow();
       expect(() => rideService.validateStatusTransition('accepted', 'en_route')).not.toThrow();
+      expect(() => rideService.validateStatusTransition('accepted', 'arrived')).not.toThrow();
       expect(() => rideService.validateStatusTransition('accepted', 'cancelled')).not.toThrow();
+      expect(() => rideService.validateStatusTransition('en_route', 'arrived')).not.toThrow();
+      expect(() => rideService.validateStatusTransition('en_route', 'in_transit')).not.toThrow();
       expect(() => rideService.validateStatusTransition('en_route', 'completed')).not.toThrow();
       expect(() => rideService.validateStatusTransition('en_route', 'cancelled')).not.toThrow();
+      expect(() => rideService.validateStatusTransition('arrived', 'in_transit')).not.toThrow();
+      expect(() => rideService.validateStatusTransition('arrived', 'completed')).not.toThrow();
+      expect(() => rideService.validateStatusTransition('in_transit', 'completed')).not.toThrow();
     });
 
     it('rejects invalid transitions', () => {
@@ -75,6 +83,12 @@ describe('rideService validation and FSM', () => {
       expect(() => rideService.validateStatusTransition('completed', 'en_route'))
         .toThrow('terminal state');
       expect(() => rideService.validateStatusTransition('cancelled', 'requested'))
+        .toThrow('terminal state');
+      expect(() => rideService.validateStatusTransition('cancelled_rider_noshow', 'requested'))
+        .toThrow('terminal state');
+      expect(() => rideService.validateStatusTransition('cancelled_safety', 'accepted'))
+        .toThrow('terminal state');
+      expect(() => rideService.validateStatusTransition('rejected_geofence', 'requested'))
         .toThrow('terminal state');
     });
   });
@@ -281,8 +295,13 @@ describe('rideService validation and FSM', () => {
       expect(rideService.VALID_STATUS_TRANSITIONS).toBeDefined();
       expect(rideService.VALID_STATUS_TRANSITIONS.requested).toContain('accepted');
       expect(rideService.VALID_STATUS_TRANSITIONS.requested).toContain('cancelled');
+      expect(rideService.VALID_STATUS_TRANSITIONS.requested).toContain('cancelled_rider_noshow');
+      expect(rideService.VALID_STATUS_TRANSITIONS.requested).toContain('rejected_geofence');
       expect(rideService.VALID_STATUS_TRANSITIONS.completed).toEqual([]);
       expect(rideService.VALID_STATUS_TRANSITIONS.cancelled).toEqual([]);
+      expect(rideService.VALID_STATUS_TRANSITIONS.cancelled_rider_noshow).toEqual([]);
+      expect(rideService.VALID_STATUS_TRANSITIONS.cancelled_safety).toEqual([]);
+      expect(rideService.VALID_STATUS_TRANSITIONS.rejected_geofence).toEqual([]);
     });
 
     it('exports VALID_BIKE_TYPES', () => {

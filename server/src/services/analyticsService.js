@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const Airtable = require('airtable');
 const logger = require('../config/logger');
+const { mapStatusToAirtable } = require('../utils/airtableStatusMapper');
 
 const airtableRidesTableName = process.env.AIRTABLE_RIDES_TABLE || 'Rides';
 const airtableSmsLogsTableName = process.env.AIRTABLE_SMS_LOGS_TABLE || 'SMS Logs';
@@ -114,7 +115,7 @@ async function logRideToAirtable(ride) {
       'Rider phone (E.164)': ride.rider?.phoneNumber || null,
       'Pickup address (normalized)': ride.pickup?.address || null,
       'Drop-off address (normalized)': ride.dropoff?.address || null,
-      'Ride status': ride.status,
+      'Ride status': mapStatusToAirtable(ride.status, ride.cancellationReason),
       'Dispatched at': ride.status === 'accepted' ? new Date().toISOString() : null,
       'Completed at': ride.status === 'completed' ? new Date().toISOString() : null,
       'WTP asked?': ride.wtpAsked || false,
