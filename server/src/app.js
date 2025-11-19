@@ -10,7 +10,16 @@ function createApp() {
   const app = express();
 
   app.use(helmet());
-  app.use(cors({ origin: process.env.CORS_ORIGIN || '*', credentials: true }));
+
+  // SECURITY: Require explicit CORS_ORIGIN configuration
+  // In development, CORS_ORIGIN should be set (e.g., http://localhost:3000)
+  // In production, this MUST be set to the exact frontend origin
+  const corsOrigin = process.env.CORS_ORIGIN;
+  if (!corsOrigin) {
+    throw new Error('CORS_ORIGIN environment variable is required');
+  }
+  app.use(cors({ origin: corsOrigin, credentials: true }));
+
   app.use(express.json());
   app.use(morgan('dev'));
   app.use(
