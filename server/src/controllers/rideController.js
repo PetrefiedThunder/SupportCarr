@@ -20,6 +20,32 @@ async function createRide(req, res, next) {
 
 async function updateRide(req, res, next) {
   try {
+    // IDOR protection: verify driver is authorized to update this ride
+    if (req.user.role !== 'admin') {
+      const existingRide = await rideService.getRideById(req.params.rideId);
+
+      if (!existingRide) {
+        return res.status(404).json({ message: 'Ride not found' });
+      }
+
+      // Driver can update if:
+      // 1. Ride is unassigned (status='requested') and they're accepting it
+      // 2. Ride is already assigned to them
+      const Driver = require('../models/Driver');
+      const driver = await Driver.findOne({ user: req.user.sub });
+
+      if (!driver) {
+        return res.status(403).json({ message: 'Driver profile required' });
+      }
+
+      const isAssignedToDriver = existingRide.driver?.toString() === driver.id;
+      const isAcceptingUnassignedRide = existingRide.status === 'requested' && !existingRide.driver;
+
+      if (!isAssignedToDriver && !isAcceptingUnassignedRide) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+    }
+
     const ride = await rideService.updateRideStatus({
       rideId: req.params.rideId,
       status: req.body.status,
