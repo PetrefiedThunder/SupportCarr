@@ -6,10 +6,11 @@ Built with Express + MongoDB backend, React + Vite PWA frontend, comprehensive t
 
 ## 🎯 Project Status
 
-- **Current Phase:** Santa Monica Pilot (Production-Ready)
-- **Total PRs Merged:** 31 (see [PR Catalog](PR_LABELS.md))
+- **Current Phase:** Production Security Hardening
+- **Total PRs Merged:** 46+ (see [PR Catalog](PR_LABELS.md))
 - **Test Coverage:** Comprehensive unit and integration tests
 - **CI/CD:** Automated linting, testing, and builds on every PR
+- **Security:** Complete security audit with IDOR, CORS, and authentication hardening
 - **Documentation:** Complete setup guides, API reference, and architecture docs
 
 ## 📁 Monorepo Structure
@@ -49,9 +50,12 @@ The API listens on `http://localhost:4000`; the PWA runs on `http://localhost:51
 ## ✨ Key Features
 
 ### 🔐 Authentication & Security
-- **JWT Authentication** - Refresh token rotation for riders, drivers, and admins
+- **JWT Authentication** - Refresh token rotation with secure secret management (PR #46)
+- **IDOR Protection** - Authorization checks prevent unauthorized data access (PR #46)
+- **CORS Security** - Explicit origin validation replaces wildcard configuration (PR #46)
 - **Input Validation** - Comprehensive request validation and sanitization
-- **Twilio Signature Verification** - Prevents spoofed SMS data (PR #31)
+- **Twilio Security** - Signature verification prevents spoofed SMS and bypass attacks (PR #31, #32, #46)
+- **Schema Validation** - Complete ride status validation and runtime checks (PR #46)
 - **PII Documentation** - Clear data handling and compliance guidelines
 
 ### 🚴 Core Ride Management
@@ -190,14 +194,14 @@ All WTP responses are automatically captured in Airtable for analysis:
 
 ### Project Evolution
 
-SupportCarr has evolved through **31 merged pull requests** covering:
+SupportCarr has evolved through **46+ merged pull requests** covering:
 
 - **7 Major Features** - Core functionality and pilot-specific features
-- **3 Critical Bug Fixes** - Distance calculation, geo handling, and schema issues
+- **10+ Critical Bug & Security Fixes** - Including IDOR protection, CORS hardening, JWT improvements
 - **6 Documentation Updates** - Comprehensive guides and API references
 - **3 CI/CD Implementations** - Automated testing and quality checks
-- **2 Refactoring PRs** - Code quality and architecture improvements
-- **1 Security Enhancement** - Input validation and error handling
+- **5+ Code Quality PRs** - Security audits, refactoring, and architecture improvements
+- **4+ Repository Cleanup** - Legacy code removal and optimization
 - **1 Planning Document** - Sprint planning and roadmap
 - **Additional PRs** - Configuration, testing, and tooling improvements
 
@@ -299,6 +303,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 - ✅ Complete WTP measurement system
 - ✅ Production security hardening
 
+### Phase 5: Security Hardening & Code Quality (PRs #32-#46)
+- ✅ WTP implementation pressure testing and hardening (PR #32)
+- ✅ Documentation improvements and PR labeling (PR #34)
+- ✅ Legacy code cleanup and repository optimization (PR #38, #39)
+- ✅ Comprehensive security audit (PRs #40-#45)
+- ✅ Critical security fixes (PR #46):
+  - IDOR protection in ride and driver endpoints
+  - CORS wildcard removal and explicit origin validation
+  - JWT secret hardening and default removal
+  - Twilio signature bypass prevention
+  - Complete ride status validation
+
 ### Next Phase: Expansion
 - 🔄 Additional pilot locations
 - 🔄 Advanced analytics dashboard
@@ -367,7 +383,7 @@ See [LICENSE](LICENSE) for details.
 
 ## 🙏 Acknowledgments
 
-Built with modern web technologies and best practices. Special thanks to all contributors who have helped shape this project through 31+ pull requests.
+Built with modern web technologies and best practices. Special thanks to all contributors who have helped shape this project through 46+ pull requests.
 
 **Project maintained by:** PetrefiedThunder
-**Last Updated:** 2025-11-14
+**Last Updated:** 2025-11-19
