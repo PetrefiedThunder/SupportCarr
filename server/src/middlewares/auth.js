@@ -10,8 +10,13 @@ function authenticate(requiredRoles = []) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return res.status(500).json({ message: 'Server configuration error' });
+    }
+
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
+      const payload = jwt.verify(token, jwtSecret);
       req.user = payload;
 
       if (requiredRoles.length && !requiredRoles.includes(payload.role)) {
