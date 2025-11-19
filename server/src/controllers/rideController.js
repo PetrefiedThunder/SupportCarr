@@ -97,7 +97,23 @@ async function listUserRides(req, res, next) {
 
 async function listDriverRides(req, res, next) {
   try {
-    const rides = await rideService.listActiveRidesForDriver(req.params.driverId);
+    const requestedDriverId = req.params.driverId;
+
+    // IDOR protection: verify requester owns this driver record or is admin
+    if (req.user.role !== 'admin') {
+      const Driver = require('../models/Driver');
+      const driver = await Driver.findById(requestedDriverId);
+
+      if (!driver) {
+        return res.status(404).json({ message: 'Driver not found' });
+      }
+
+      if (driver.user.toString() !== req.user.sub) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+    }
+
+    const rides = await rideService.listActiveRidesForDriver(requestedDriverId);
     res.json(rides);
   } catch (error) {
     next(error);
