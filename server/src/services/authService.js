@@ -14,7 +14,12 @@ function signAccessToken(user) {
     name: user.name
   };
 
-  return jwt.sign(payload, process.env.JWT_SECRET || 'dev-secret', {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+
+  return jwt.sign(payload, jwtSecret, {
     expiresIn: ACCESS_TOKEN_TTL
   });
 }

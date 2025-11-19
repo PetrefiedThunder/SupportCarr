@@ -13,14 +13,18 @@ const router = express.Router();
 function verifyTwilioSignature(req, res, next) {
   const authToken = process.env.TWILIO_AUTH_TOKEN;
 
-  // Skip verification in test mode or if Twilio is not configured
-  // SECURITY: Never bypass in production, even if NODE_ENV is accidentally set to 'test'
+  // If Twilio is not configured, allow requests (dev/test scenarios)
   if (!authToken) {
     logger.warn('Twilio signature verification skipped - TWILIO_AUTH_TOKEN not set');
     return next();
   }
-  
-  if (process.env.NODE_ENV === 'test') {
+
+  // SECURITY: Only skip verification in test environment AND when not in production
+  // This prevents accidental bypass if NODE_ENV is misconfigured in production
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isTest = process.env.NODE_ENV === 'test';
+
+  if (isTest && !isProduction) {
     logger.debug('Twilio signature verification skipped - test mode');
     return next();
   }

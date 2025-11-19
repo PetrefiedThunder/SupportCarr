@@ -191,12 +191,12 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, ca
   }
 
   ride.status = status;
-  
+
   // Set cancellation reason for cancelled/rejected statuses
   if (cancellationReason !== undefined) {
     ride.cancellationReason = cancellationReason;
   }
-  
+
   if (driverEtaMinutes !== undefined) {
     if (typeof driverEtaMinutes !== 'number' || driverEtaMinutes < 0) {
       throw new Error('driverEtaMinutes must be a non-negative number');
@@ -205,9 +205,6 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, ca
   }
   if (driverId !== undefined) {
     ride.driver = driverId;
-  }
-  if (cancellationReason !== undefined) {
-    ride.cancellationReason = cancellationReason;
   }
   if (assistRequired !== undefined) {
     ride.assistRequired = assistRequired;

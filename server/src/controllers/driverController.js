@@ -15,8 +15,24 @@ async function upsertDriver(req, res, next) {
 
 async function updateDriver(req, res, next) {
   try {
+    const requestedDriverId = req.params.driverId;
+
+    // IDOR protection: verify requester owns this driver record or is admin
+    if (req.user.role !== 'admin') {
+      const Driver = require('../models/Driver');
+      const existingDriver = await Driver.findById(requestedDriverId);
+
+      if (!existingDriver) {
+        return res.status(404).json({ message: 'Driver not found' });
+      }
+
+      if (existingDriver.user.toString() !== req.user.sub) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+    }
+
     const driver = await driverService.updateDriverStatus({
-      driverId: req.params.driverId,
+      driverId: requestedDriverId,
       active: req.body.active,
       currentLocation: req.body.currentLocation
     });
