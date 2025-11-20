@@ -36,14 +36,23 @@ class RideDocument {
     const nestedPopulate = typeof pathOrOptions === 'object' ? pathOrOptions.populate : null;
 
     if (path === 'driver') {
-      const driver = await Driver.findById(this.driver);
-      if (driver && nestedPopulate) {
-        await driver.populate(nestedPopulate);
+      // Only populate if driver is not already populated (is still an ID)
+      if (this.driver && typeof this.driver === 'string') {
+        const driver = await Driver.findById(this.driver);
+        if (driver && nestedPopulate) {
+          await driver.populate(nestedPopulate);
+        }
+        this.driver = driver;
+      } else if (this.driver && nestedPopulate) {
+        // Driver is already populated, but we may need to populate nested fields
+        await this.driver.populate(nestedPopulate);
       }
-      this.driver = driver;
     } else if (path === 'rider') {
-      const rider = await User.findById(this.rider);
-      this.rider = rider;
+      // Only populate if rider is not already populated (is still an ID)
+      if (this.rider && typeof this.rider === 'string') {
+        const rider = await User.findById(this.rider);
+        this.rider = rider;
+      }
     }
     return this;
   }

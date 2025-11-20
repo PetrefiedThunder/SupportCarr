@@ -13,6 +13,10 @@ class DriverDocument {
     return this._id;
   }
 
+  toString() {
+    return String(this._id);
+  }
+
   async save() {
     return this;
   }
@@ -65,6 +69,11 @@ class DriverModel {
 
   static findById(id) {
     const doc = store.find((item) => String(item._id) === String(id)) || null;
+    return new DriverQuery(doc);
+  }
+
+  static findOne(filter) {
+    const doc = store.find((item) => matches(item, filter)) || null;
     return new DriverQuery(doc);
   }
 

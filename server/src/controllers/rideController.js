@@ -1,6 +1,7 @@
 const rideService = require('../services/rideService');
 const rideEvents = require('../utils/rideEvents');
 const serializeRide = require('../utils/serializeRide');
+const Driver = require('../models/Driver');
 
 async function createRide(req, res, next) {
   try {
@@ -31,7 +32,6 @@ async function updateRide(req, res, next) {
       // Driver can update if:
       // 1. Ride is unassigned (status='requested') and they're accepting it
       // 2. Ride is already assigned to them
-      const Driver = require('../models/Driver');
       const driver = await Driver.findOne({ user: req.user.sub });
 
       if (!driver) {

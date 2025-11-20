@@ -22,7 +22,12 @@ function matches(doc, query = {}) {
     if (typeof value === 'object' && value !== null && value.$in) {
       return value.$in.includes(doc[key]);
     }
-    return String(doc[key]) === String(value);
+    // Handle case where doc[key] is an object with _id property (populated field)
+    const docValue = doc[key];
+    if (typeof docValue === 'object' && docValue !== null && docValue._id) {
+      return String(docValue._id) === String(value);
+    }
+    return String(docValue) === String(value);
   });
 }
 
