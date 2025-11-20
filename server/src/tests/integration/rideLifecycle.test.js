@@ -6,6 +6,7 @@ const paymentService = require('../../services/paymentService');
 
 process.env.JWT_SECRET = 'test-secret';
 process.env.STRIPE_SECRET_KEY = 'sk_test_mocked';
+process.env.CORS_ORIGIN = 'http://localhost:3000';
 
 jest.setTimeout(30000);
 
