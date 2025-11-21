@@ -3,11 +3,14 @@
 Welcome to the SupportCarr monorepo. This project delivers a full-stack proof-of-concept for an on-demand bike rescue platform
 covering Echo Park / Silver Lake in Los Angeles with a Joshua Tree pilot.
 
-## Prerequisites
+## System Prerequisites
 
-- Node.js 20+
-- npm 10+
-- Running MongoDB and Redis instances (local Docker is fine)
+You need these installed on your machine or server:
+
+- **Node.js**: Version 20+
+- **npm**: Version 10+
+- **MongoDB**: A running instance (local or cloud/Atlas)
+- **Redis**: A running instance (local or cloud). Note: The code has an in-memory fallback if Redis is missing, but a real instance is recommended for production/full features.
 
 ## Setup
 
