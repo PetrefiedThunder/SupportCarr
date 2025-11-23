@@ -1,25 +1,26 @@
 # SupportCarr Monorepo
 
-SupportCarr is a full-stack platform for on-demand e-bike and bicycle rescue. The repo hosts an Express + MongoDB API, a React +
-Vite progressive web app, and the operational docs that power the Santa Monica pilot, including the Willingness-To-Pay (WTP)
-survey loop that feeds Airtable analytics.
+SupportCarr is a full-stack MVP for on-demand e-bike and bicycle rescue. The repo hosts an Express + MongoDB API, a React +
+Vite progressive web app, and pilot playbooks that cover Los Angeles (Echo Park/Silver Lake) plus a Joshua Tree extension with
+Santa Monica-specific WTP instrumentation docs for the current pilot. 【F:docs/README.md†L1-L4】【F:docs/PILOT_SETUP.md†L1-L90】
 
 ## Status at a Glance
-- **Pilot:** Santa Monica coverage with Airtable + Twilio instrumentation (see [docs/PILOT_SETUP.md](docs/PILOT_SETUP.md))
-- **Ride lifecycle:** State-machine backed service that enforces pilot distance limits, auto-assigns nearby drivers, and pushes
-  server-sent events for live tracking (`server/src/services/rideService.js`, `server/src/controllers/rideController.js`)
+- **Pilots:** Seed data covers Echo Park/Silver Lake riders with a Joshua Tree outpost, while Santa Monica-focused Airtable/Twilio
+  setup instructions drive the live WTP pilot. 【F:server/src/utils/seed.js†L1-L86】【F:docs/PILOT_SETUP.md†L1-L137】
+- **Ride lifecycle:** A finite state machine enforces the 10-mile pilot limit, auto-assigns nearby drivers using the Redis
+  geostore (with an in-memory fallback), and logs Airtable ride analytics. 【F:server/src/services/rideService.js†L31-L116】【F:server/src/config/redis.js†L1-L71】【F:server/src/services/analyticsService.js†L1-L78】
 - **Multi-role PWA:** Landing, rider, driver, and admin consoles share a single Vite app with role switching in
-  `client/src/App.jsx` and dedicated pages under `client/src/pages/`
-- **Data exhaust:** Twilio webhook + Airtable analytics pipeline logs every ride and SMS with retry/backoff plus CLI test
-  scripts (`server/src/routes/twilioRoutes.js`, `server/src/services/analyticsService.js`, `server/scripts/test-wtp-flow.js`)
-- **Reviews & audits:** Code review, logic audit, and operational audit docs are checked in for quick onboarding
-  (`CODE_REVIEW_README.md`, `LOGIC_AUDIT_SUMMARY.md`, `AUDIT_SUMMARY.md`)
+  `client/src/App.jsx` and dedicated pages under `client/src/pages/`.
+- **Data exhaust:** Twilio webhooks and SMS logging feed Airtable with retry/backoff, and CLI scripts simulate end-to-end WTP
+  messaging flows. 【F:server/src/routes/twilioRoutes.js†L1-L112】【F:server/src/services/analyticsService.js†L78-L151】【F:server/scripts/test-wtp-flow.js†L1-L140】
+- **Reviews & audits:** Code review, logic audit, and operational audit docs live alongside the code for fast onboarding
+  (`CODE_REVIEW_README.md`, `LOGIC_AUDIT_SUMMARY.md`, `AUDIT_SUMMARY.md`).
 
 ## Repository Layout
 ```
 client/   React + Vite PWA (multi-role UI, Tailwind styling, Jest + RTL tests)
 server/   Express API, MongoDB models, Redis-powered dispatch, Twilio/Stripe/Airtable services
-server/scripts/   Operational tooling (WTW tests, Airtable validator, demo workflow)
+server/scripts/   Operational tooling (WTP tests, Airtable validator, demo workflow)
 docs/     Architecture, pilot setup, API reference, and contributor guides
 *.md      Code review, roadmap, audit, and contribution documentation
 ```
