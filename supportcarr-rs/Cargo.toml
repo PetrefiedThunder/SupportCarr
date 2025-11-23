@@ -1,0 +1,25 @@
+[workspace]
+members = [
+    "crates/core",
+    "crates/dispatch-redis",
+    "crates/api",
+    "crates/twilio",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+authors = ["SupportCarr Migration Team"]
+license = "MIT"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+axum = { version = "0.7", features = ["macros", "json"] }
+redis = { version = "0.25", features = ["tokio-comp"] }
+thiserror = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hmac = "0.12"
+sha1 = "0.10"

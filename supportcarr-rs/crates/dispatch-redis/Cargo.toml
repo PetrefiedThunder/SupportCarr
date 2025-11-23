@@ -1,0 +1,17 @@
+[package]
+name = "supportcarr-dispatch-redis"
+version = "0.1.0"
+edition = "2021"
+authors = ["SupportCarr Migration Team"]
+license = "MIT"
+
+[features]
+redis-tests = []
+
+[dependencies]
+supportcarr-core = { path = "../core" }
+redis = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
