@@ -1,0 +1,20 @@
+[package]
+name = "supportcarr-twilio"
+version = "0.1.0"
+edition = "2021"
+authors = ["SupportCarr Migration Team"]
+license = "MIT"
+
+[dependencies]
+supportcarr-core = { path = "../core" }
+axum = { workspace = true }
+hmac = { workspace = true }
+sha1 = { workspace = true }
+hex = "0.4"
+base64 = "0.21"
+subtle = "2"
+serde = { workspace = true }
+serde_urlencoded = "0.7"
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
