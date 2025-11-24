@@ -125,9 +125,9 @@ node server/scripts/validate-airtable-config.js
 
 ### Positive Findings
 
-1. **Idempotency Protection**: SMS logging includes message SID caching to prevent duplicates (analyticsService.js:218)
+1. **Idempotency Protection**: SMS logging includes message SID caching to prevent duplicates (analyticsService.js:218-220, 259-262)
 
-2. **Retry Logic**: Airtable operations include exponential backoff retry with 10-second timeout (analyticsService.js:40-68)
+2. **Retry Logic**: Airtable operations include exponential backoff retry with 10-second timeout (analyticsService.js:40-68, core backoff at line 57)
 
 3. **Data Linkage**: Proper linking between MongoDB and Airtable using Ride ID field
 
@@ -137,11 +137,16 @@ node server/scripts/validate-airtable-config.js
 
 ### Potential Future Enhancements (Not Required for Audit)
 
-1. **Arrived Pickup Timestamp**: The field `'Arrived pickup at'` is defined in schema but not yet populated in code
-   - Current code only sets `'Dispatched at'` and `'Completed at'`
-   - Consider adding when ride status changes to `'arrived'`
+These observations do not affect operational compliance with the Field Manual but could be considered for future iterations:
 
-2. **SMS Logs Table**: Could add `'Message SID'` field population in current implementation (currently optional)
+1. **Arrived Pickup Timestamp**: The field `'Arrived pickup at'` is defined in the Airtable schema validator and PILOT_SETUP.md but not yet populated by the code
+   - Current code only sets `'Dispatched at'` and `'Completed at'`
+   - This field is marked as optional in the documentation
+   - Could be populated when ride status changes to `'arrived'` if needed for operational metrics
+
+2. **SMS Logs Message SID**: The `'Message SID'` field is optional in the schema
+   - Currently used for idempotency checking in cache but not always written to Airtable
+   - Consider populating consistently for better audit trail
 
 ---
 
