@@ -3,7 +3,7 @@ const { DEFAULT_DISPATCH_RADIUS_MILES } = require('../config/constants');
 const Driver = require('../models/Driver');
 const {
   upsertDriverLocation,
-  findAndLockBestDriver,
+  findBestDrivers: findBestDriversFromPostgis,
   markDriverAvailable
 } = require('../repositories/driverLocationRepository');
 
@@ -59,20 +59,21 @@ function calculateDispatchScore(driver, distanceMiles) {
  * @returns {Promise<Array>} Sorted array of {driverId, score, distance}
  */
 async function findBestDrivers({ lat, lng, radiusMiles = DEFAULT_DISPATCH_RADIUS_MILES }) {
-  const best = await findAndLockBestDriver({ lat, lng, radiusMiles });
+  const best = await findBestDriversFromPostgis({ lat, lng, radiusMiles });
 
-  if (!best) {
+  if (!best.length) {
     return [];
   }
 
-  const driver = await Driver.findOne({ _id: best.driverId, active: true }).populate('user');
+  const candidate = best[0];
+  const driver = await Driver.findOne({ _id: candidate.driverId, active: true }).populate('user');
 
   if (!driver) {
-    await markDriverAvailable(best.driverId);
+    await markDriverAvailable(candidate.driverId);
     return [];
   }
 
-  const distance = best.distanceMiles ?? estimateDistance(
+  const distance = candidate.distanceMiles ?? estimateDistance(
     lat,
     lng,
     driver.currentLocation?.lat,
@@ -85,7 +86,7 @@ async function findBestDrivers({ lat, lng, radiusMiles = DEFAULT_DISPATCH_RADIUS
     pickup: { lat, lng },
     driverId: driver.id,
     distance,
-    lastRideCompletedAt: best.lastRideCompletedAt
+    lastRideCompletedAt: candidate.lastRideCompletedAt
   });
 
   return [{
@@ -93,7 +94,7 @@ async function findBestDrivers({ lat, lng, radiusMiles = DEFAULT_DISPATCH_RADIUS
     driverId: driver._id.toString(),
     score,
     distance,
-    lastRideCompletedAt: best.lastRideCompletedAt
+    lastRideCompletedAt: candidate.lastRideCompletedAt
   }];
 }
 
