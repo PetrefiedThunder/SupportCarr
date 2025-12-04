@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": ["server", "client"],
+  "overrides": {
+    "sucrase": "^3.35.1"
+  },
   "scripts": {
     "install:all": "npm install --workspaces",
     "dev:server": "npm --workspace server run dev",
