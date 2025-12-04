@@ -1,7 +1,11 @@
-const Ride = require('../models/Ride');
-const Driver = require('../models/Driver');
 const logger = require('../config/logger');
 const { RIDE_PRICE_CENTS } = require('../config/constants');
+const {
+  countActiveDriversNear,
+  countActiveRidesNear,
+  DEFAULT_RADIUS_METERS,
+  ensureGeoIndexes
+} = require('./geoService');
 
 // Surge pricing thresholds
 const SURGE_THRESHOLD_RATIO = 1.5; // Demand/supply ratio to trigger surge
@@ -13,24 +17,17 @@ const MAX_SURGE_MULTIPLIER = 2.5;
  * @param {Object} params - Pricing parameters
  * @param {number} params.lat - Pickup latitude
  * @param {number} params.lng - Pickup longitude
- * @param {number} params.radiusMiles - Area to check (default 10 miles)
+ * @param {number} params.radiusMeters - Area to check (default 10 miles in meters)
  * @returns {Promise<{multiplier: number, reason: string}>}
  */
-async function calculateSurgeMultiplier({ lat, lng, radiusMiles = 10 }) {
+async function calculateSurgeMultiplier({ lat, lng, radiusMeters = DEFAULT_RADIUS_METERS }) {
   try {
-    // Count active rides (requested or in-progress)
-    const activeRides = await Ride.countDocuments({
-      status: { $in: ['requested', 'accepted', 'en_route', 'arrived', 'in_transit'] },
-      'pickup.lat': { $gte: lat - 0.15, $lte: lat + 0.15 }, // ~10 mile radius
-      'pickup.lng': { $gte: lng - 0.15, $lte: lng + 0.15 }
-    });
+    await ensureGeoIndexes();
 
-    // Count active drivers (currently available)
-    const activeDrivers = await Driver.countDocuments({
-      active: true,
-      'currentLocation.lat': { $gte: lat - 0.15, $lte: lat + 0.15 },
-      'currentLocation.lng': { $gte: lng - 0.15, $lte: lng + 0.15 }
-    });
+    const [activeRides, activeDrivers] = await Promise.all([
+      countActiveRidesNear({ lat, lng, radiusMeters }),
+      countActiveDriversNear({ lat, lng, radiusMeters })
+    ]);
 
     // Avoid division by zero
     if (activeDrivers === 0) {
@@ -55,9 +52,9 @@ async function calculateSurgeMultiplier({ lat, lng, radiusMiles = 10 }) {
     let reason = 'Normal pricing';
 
     if (demandSupplyRatio >= SURGE_THRESHOLD_RATIO) {
-      // Linear scaling: 1.5x ratio = 1.5x price, 3.0x ratio = 2.5x price
+      // Weight surge more aggressively when geodesic demand outpaces supply
       multiplier = Math.min(
-        MIN_SURGE_MULTIPLIER + (demandSupplyRatio - 1.0) * 0.5,
+        MIN_SURGE_MULTIPLIER + (demandSupplyRatio - 1.0) * 0.75,
         MAX_SURGE_MULTIPLIER
       );
       reason = `High demand (${activeRides} rides, ${activeDrivers} drivers)`;
