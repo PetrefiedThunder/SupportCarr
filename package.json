@@ -4,7 +4,8 @@
   "private": true,
   "workspaces": ["server", "client"],
   "overrides": {
-    "sucrase": "^3.35.1"
+    "sucrase": "^3.35.1",
+    "esbuild": "^0.25.12"
   },
   "scripts": {
     "install:all": "npm install --workspaces",
