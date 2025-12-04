@@ -40,4 +40,16 @@ describe('pricingService surge calculation with PostGIS counts', () => {
     expect(result.multiplier).toBeCloseTo(2.5); // 3.0 ratio -> capped at 2.5
     expect(result.reason).toMatch(/High demand/);
   });
+
+  test('handles elevated demand near coordinate extremes with configurable radius', async () => {
+    countActiveRidesNear.mockResolvedValue(7);
+    countActiveDriversNear.mockResolvedValue(5);
+
+    const result = await calculateSurgeMultiplier({ lat: 89.999, lng: 179.999, radiusMeters: 750 });
+
+    expect(countActiveDriversNear).toHaveBeenCalledWith({ lat: 89.999, lng: 179.999, radiusMeters: 750 });
+    expect(result.multiplier).toBeGreaterThan(1);
+    expect(result.multiplier).toBeLessThan(2);
+    expect(result.reason).toMatch(/Elevated demand/);
+  });
 });

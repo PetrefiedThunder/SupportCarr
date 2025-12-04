@@ -20,6 +20,7 @@ async function ensureSchema(client) {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await client.query('CREATE INDEX IF NOT EXISTS idx_driver_locations_location_gist ON driver_locations USING GIST (location)');
   schemaReady = true;
 }
 
@@ -50,7 +51,11 @@ async function upsertDriverLocation({ driverId, lat, lng, active }) {
 async function findBestDrivers({ lat, lng, radiusMiles }) {
   const pool = getPostgresPool();
   const client = await pool.connect();
-  const radiusMeters = radiusMiles * MILES_TO_METERS;
+  const searchRadiusMeters = radiusMeters ?? (radiusMiles ? radiusMiles * MILES_TO_METERS : null);
+
+  if (!searchRadiusMeters) {
+    throw new Error('radiusMeters or radiusMiles is required to search for drivers');
+  }
 
   try {
     await ensureSchema(client);
@@ -67,7 +72,7 @@ async function findBestDrivers({ lat, lng, radiusMiles }) {
         ORDER BY last_ride_completed_at NULLS FIRST, distance_meters ASC
         FOR UPDATE SKIP LOCKED
         LIMIT 1`,
-      [lng, lat, radiusMeters]
+      [lng, lat, searchRadiusMeters]
     );
 
     if (!rows.length) {
