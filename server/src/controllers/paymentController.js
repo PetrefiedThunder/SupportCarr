@@ -7,10 +7,15 @@ async function stripeWebhook(req, res, next) {
       return res.status(400).json({ error: 'Missing Stripe-Signature header' });
     }
 
+    const idempotencyKey = req.headers['idempotency-key'];
+    if (!idempotencyKey) {
+      return res.status(400).json({ error: 'Missing Idempotency-Key header' });
+    }
+
     const ledger = await handleStripeWebhook({
       rawBody: req.body,
       signature,
-      idempotencyKey: req.headers['idempotency-key']
+      idempotencyKey
     });
 
     return res.status(200).json({ received: true, ledgerId: ledger.id });
