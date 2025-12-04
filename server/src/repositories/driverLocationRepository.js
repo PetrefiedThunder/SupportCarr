@@ -1,15 +1,16 @@
 const { getDatabase } = require('../db/knex');
+const logger = require('../config/logger');
 
 const MILES_TO_METERS = 1609.34;
 let schemaReady = false;
 
-async function ensureSchema(client) {
+async function ensureSchema(trx) {
   if (schemaReady) {
     return;
   }
 
-  await client.query('CREATE EXTENSION IF NOT EXISTS postgis');
-  await client.query(`
+  await trx.raw('CREATE EXTENSION IF NOT EXISTS postgis');
+  await trx.raw(`
     CREATE TABLE IF NOT EXISTS driver_locations (
       driver_id TEXT PRIMARY KEY,
       location GEOGRAPHY(Point, 4326),
@@ -19,7 +20,7 @@ async function ensureSchema(client) {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-  await client.query('CREATE INDEX IF NOT EXISTS idx_driver_locations_location_gist ON driver_locations USING GIST (location)');
+  await trx.raw('CREATE INDEX IF NOT EXISTS idx_driver_locations_location_gist ON driver_locations USING GIST (location)');
   schemaReady = true;
 }
 
@@ -41,54 +42,54 @@ async function upsertDriverLocation({ driverId, lat, lng, active }) {
 }
 
 async function findBestDrivers({ lat, lng, radiusMiles }) {
-  const pool = getPostgresPool();
-  const client = await pool.connect();
-  const searchRadiusMeters = radiusMeters ?? (radiusMiles ? radiusMiles * MILES_TO_METERS : null);
+  const db = await getDatabase();
+  const parsedRadiusMiles = Number(radiusMiles);
 
-  if (!searchRadiusMeters) {
-    throw new Error('radiusMeters or radiusMiles is required to search for drivers');
+  if (!Number.isFinite(parsedRadiusMiles) || parsedRadiusMiles <= 0) {
+    throw new Error('radiusMiles is required to search for drivers');
   }
 
-  try {
-    await ensureSchema(client);
-    await client.query('BEGIN');
-    const { rows } = await client.query(
-      `SELECT driver_id,
-              ST_Distance(location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) AS distance_meters,
-              last_ride_completed_at
-         FROM driver_locations
-        WHERE active = TRUE
-          AND available = TRUE
-          AND location IS NOT NULL
-          AND ST_DWithin(location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3)
-        ORDER BY last_ride_completed_at NULLS FIRST, distance_meters ASC
-        FOR UPDATE SKIP LOCKED
-        LIMIT 1`,
-      [lng, lat, searchRadiusMeters]
-    );
+  const searchRadiusMeters = parsedRadiusMiles * MILES_TO_METERS;
 
-    if (!rows.length) {
-      await client.query('ROLLBACK');
-      return [];
+  return db.transaction(async (trx) => {
+    try {
+      await ensureSchema(trx);
+      const { rows } = await trx.raw(
+        `SELECT driver_id,
+                ST_Distance(location, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography) AS distance_meters,
+                last_ride_completed_at
+           FROM driver_locations
+          WHERE active = TRUE
+            AND available = TRUE
+            AND location IS NOT NULL
+            AND ST_DWithin(location, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)
+          ORDER BY last_ride_completed_at NULLS FIRST, distance_meters ASC
+          FOR UPDATE SKIP LOCKED
+          LIMIT 1`,
+        [lng, lat, lng, lat, searchRadiusMeters]
+      );
+
+      if (!rows.length) {
+        return [];
+      }
+
+      const [best] = rows;
+
+      await trx('drivers')
+        .where({ id: best.driver_id })
+        .update({ status: 'busy', updated_at: trx.fn.now() });
+
+      return [{
+        driverId: best.driver_id,
+        distanceMeters: parseFloat(best.distance_meters),
+        distanceMiles: parseFloat(best.distance_meters) / MILES_TO_METERS,
+        lastRideCompletedAt: best.last_ride_completed_at
+      }];
+    } catch (error) {
+      logger.error('Failed to lock best driver', { error: error.message });
+      throw error;
     }
-
-    await trx('drivers')
-      .where({ id: candidate.id })
-      .update({ status: 'busy', updated_at: trx.fn.now() });
-
-    return [{
-      driverId: best.driver_id,
-      distanceMeters: Number(best.distance_meters),
-      distanceMiles: Number(best.distance_meters) / MILES_TO_METERS,
-      lastRideCompletedAt: best.last_ride_completed_at
-    }];
-  } catch (error) {
-    await client.query('ROLLBACK');
-    logger.error('Failed to lock best driver', { error: error.message });
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 async function markDriverAvailable(driverId, lastRideCompletedAt = null) {
