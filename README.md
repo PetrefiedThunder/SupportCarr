@@ -8,7 +8,7 @@ Santa Monica-specific WTP instrumentation docs for the current pilot. 【F:docs/
 - **Pilots:** Seed data covers Echo Park/Silver Lake riders with a Joshua Tree outpost, while Santa Monica-focused Airtable/Twilio
   setup instructions drive the live WTP pilot. 【F:server/src/utils/seed.js†L1-L86】【F:docs/PILOT_SETUP.md†L1-L137】
 - **Ride lifecycle:** A finite state machine enforces the 10-mile pilot limit, auto-assigns nearby drivers using the Redis
-  geostore (with an in-memory fallback), and logs Airtable ride analytics. 【F:server/src/services/rideService.js†L31-L116】【F:server/src/config/redis.js†L1-L71】【F:server/src/services/analyticsService.js†L1-L78】
+  geostore, and logs Airtable ride analytics. 【F:server/src/services/rideService.js†L31-L116】【F:server/src/config/redis.js†L1-L71】【F:server/src/services/analyticsService.js†L1-L78】
 - **Multi-role PWA:** Landing, rider, driver, and admin consoles share a single Vite app with role switching in
   `client/src/App.jsx` and dedicated pages under `client/src/pages/`.
 - **Data exhaust:** Twilio webhooks and SMS logging feed Airtable with retry/backoff, and CLI scripts simulate end-to-end WTP
@@ -64,14 +64,18 @@ _archived/   Paused experiments and migrations (not part of active development)
 
 ## Getting Started
 ### Prerequisites
-- Node.js 20+, npm 10+, MongoDB, and Redis (local Docker works fine) — see [docs/README.md](docs/README.md)
+- Node.js 20+ and npm 10+
+- PostgreSQL with PostGIS (local Docker works fine)
+- Redis (fail-fast on startup if unavailable)
+- MongoDB only when migrating legacy data (optional)
+  - Startup will fail if PostgreSQL or Redis are unreachable because `connectDatabase`, `getDatabase`, and `getRedisClient` enforce connectivity before serving requests.
 
 ### Install & Configure
 ```bash
 npm install
 cp server/.env.example server/.env
 cp client/.env.example client/.env
-# fill in MongoDB, Redis, Stripe, Twilio, and Airtable credentials
+# fill in PostgreSQL, Redis, Stripe, Twilio, and Airtable credentials (MongoDB only if legacy data is enabled)
 ```
 
 ### Run Locally
@@ -108,7 +112,7 @@ The API exposes `/api/health` for quick status checks.
 ## Tech Stack
 | Layer | Technologies |
 |-------|--------------|
-| Backend | Node.js, Express 5, MongoDB/Mongoose, Redis, Stripe, Twilio, Airtable (`server/package.json`) |
+| Backend | Node.js, Express 5, PostgreSQL/PostGIS (Knex), MongoDB/Mongoose (legacy), Redis, Stripe, Twilio, Airtable (`server/package.json`) |
 | Frontend | React 18, Vite 5, Tailwind CSS, React Router, Zustand, Leaflet (`client/package.json`) |
 | Tooling | Jest, React Testing Library, Supertest, ESLint + Prettier, npm workspaces, GitHub Actions |
 

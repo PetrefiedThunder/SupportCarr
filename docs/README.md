@@ -9,8 +9,9 @@ You need these installed on your machine or server:
 
 - **Node.js**: Version 20+
 - **npm**: Version 10+
-- **MongoDB**: A running instance (local or cloud/Atlas)
-- **Redis**: A running instance (local or cloud). Note: The code has an in-memory fallback if Redis is missing, but a real instance is recommended for production/full features.
+- **PostgreSQL with PostGIS**: A running instance (local Docker is fine)
+- **Redis**: A running instance (local or cloud)
+- **MongoDB**: Only when migrating legacy data (optional)
 
 ## Setup
 
@@ -20,7 +21,7 @@ cp server/.env.example server/.env
 cp client/.env.example client/.env
 ```
 
-Update the environment files with your credentials.
+Update the environment files with your credentials. The server fails fast on startup if PostgreSQL or Redis are unavailable because `connectDatabase`, `getDatabase`, and `getRedisClient` validate connections before handling requests.
 
 ## Running Locally
 
