@@ -48,7 +48,7 @@ async function upsertDriverLocation({ driverId, lat, lng, active }) {
   }
 }
 
-async function findAndLockBestDriver({ lat, lng, radiusMiles, radiusMeters }) {
+async function findBestDrivers({ lat, lng, radiusMiles }) {
   const pool = getPostgresPool();
   const client = await pool.connect();
   const searchRadiusMeters = radiusMeters ?? (radiusMiles ? radiusMiles * MILES_TO_METERS : null);
@@ -77,19 +77,19 @@ async function findAndLockBestDriver({ lat, lng, radiusMiles, radiusMeters }) {
 
     if (!rows.length) {
       await client.query('ROLLBACK');
-      return null;
+      return [];
     }
 
     const best = rows[0];
     await client.query('UPDATE driver_locations SET available = FALSE, updated_at = NOW() WHERE driver_id = $1', [best.driver_id]);
     await client.query('COMMIT');
 
-    return {
+    return [{
       driverId: best.driver_id,
       distanceMeters: Number(best.distance_meters),
       distanceMiles: Number(best.distance_meters) / MILES_TO_METERS,
       lastRideCompletedAt: best.last_ride_completed_at
-    };
+    }];
   } catch (error) {
     await client.query('ROLLBACK');
     logger.error('Failed to lock best driver', { error: error.message });
@@ -123,6 +123,6 @@ async function markDriverAvailable(driverId, lastRideCompletedAt = null) {
 
 module.exports = {
   upsertDriverLocation,
-  findAndLockBestDriver,
+  findBestDrivers,
   markDriverAvailable
 };
