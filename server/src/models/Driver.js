@@ -31,6 +31,20 @@ const driverSchema = new mongoose.Schema(
     serviceRadiusMiles: {
       type: Number,
       default: 10
+    },
+    rating: {
+      type: Number,
+      min: 0,
+      max: 5,
+      default: 5.0 // Start with perfect rating
+    },
+    totalRides: {
+      type: Number,
+      default: 0
+    },
+    lastRideCompletedAt: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }

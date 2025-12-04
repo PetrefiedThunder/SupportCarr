@@ -1,9 +1,10 @@
 const Ride = require('../models/Ride');
 const Driver = require('../models/Driver');
 const User = require('../models/User');
-const { findNearbyDrivers, triggerDriverNotification } = require('./dispatchService');
+const { findBestDrivers, triggerDriverNotification } = require('./dispatchService');
 const { ensureRidePaymentIntent, captureRidePayment } = require('./paymentService');
 const { logRideEvent, updateRideInAirtable } = require('./analyticsService');
+const { calculateRidePrice } = require('./pricingService');
 const smsService = require('./smsService');
 const rideEvents = require('../utils/rideEvents');
 const serializeRide = require('../utils/serializeRide');
@@ -66,20 +67,15 @@ function validateLocation(location, fieldName) {
   }
 }
 
-function calculatePrice() {
-  // Flat rate: $50 for all rides regardless of distance
-  return RIDE_PRICE_CENTS;
-}
-
 async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
   // Input validation
   if (!riderId) {
     throw new Error('riderId is required');
   }
-  
+
   validateLocation(pickup, 'pickup');
   validateLocation(dropoff, 'dropoff');
-  
+
   if (bikeType && !VALID_BIKE_TYPES.includes(bikeType)) {
     throw new Error(`Invalid bikeType. Must be one of: ${VALID_BIKE_TYPES.join(', ')}`);
   }
@@ -96,13 +92,19 @@ async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
   }
 
   const distanceMiles = estimateDistanceMiles(pickup, dropoff);
-  
+
   // Enforce pilot program distance limit
   if (distanceMiles > MAX_RIDE_DISTANCE_MILES) {
     throw new Error(`Trip exceeds pilot ${MAX_RIDE_DISTANCE_MILES}-mile limit`);
   }
-  
-  const priceCents = calculatePrice();
+
+  // FEATURE: Dynamic pricing based on supply/demand
+  const { priceCents, multiplier, reason } = await calculateRidePrice({
+    lat: pickup.lat,
+    lng: pickup.lng,
+    distanceMiles
+  });
+
   const ride = await Ride.create({
     rider: riderId,
     riderPhone: rider.phoneNumber,
@@ -117,7 +119,12 @@ async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
 
   await ensureRidePaymentIntent({ ride, amountCents: priceCents });
 
-  await logRideEvent({ type: 'ride_requested', rideId: ride.id });
+  await logRideEvent({
+    type: 'ride_requested',
+    rideId: ride.id,
+    pricingMultiplier: multiplier,
+    pricingReason: reason
+  });
   await attemptAutoAssignDriver(ride);
 
   return ride;
@@ -148,27 +155,33 @@ function estimateDistanceMiles(pickup, dropoff) {
 }
 
 async function attemptAutoAssignDriver(ride) {
-  const candidates = await findNearbyDrivers({
+  // FEATURE: Smart dispatch with weighted scoring algorithm
+  // Considers distance (50%), last ride time (30%), and rating (20%)
+  const scoredDrivers = await findBestDrivers({
     lat: ride.pickup.lat,
     lng: ride.pickup.lng,
     radiusMiles: DISPATCH_RADIUS_MILES
   });
 
-  if (!candidates.length) {
+  if (!scoredDrivers.length) {
     return ride;
   }
 
-  const driver = await Driver.findById(candidates[0]).populate('user');
-  if (!driver) {
-    return ride;
-  }
+  // Select the best driver (lowest score = best match)
+  const { driver, score, distance } = scoredDrivers[0];
 
   ride.driver = driver.id;
   ride.status = 'accepted';
   await ride.save();
 
   await triggerDriverNotification(driver, ride);
-  await logRideEvent({ type: 'ride_assigned', rideId: ride.id, driverId: driver.id });
+  await logRideEvent({
+    type: 'ride_assigned',
+    rideId: ride.id,
+    driverId: driver.id,
+    dispatchScore: score,
+    distanceMiles: distance
+  });
 
   return ride;
 }
@@ -222,6 +235,18 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, ca
 
   if (status === 'completed') {
     await captureRidePayment({ ride });
+
+    // FEATURE: Update driver stats for smart dispatch
+    if (ride.driver) {
+      const driver = await Driver.findById(ride.driver);
+      if (driver) {
+        driver.lastRideCompletedAt = new Date();
+        driver.totalRides = (driver.totalRides || 0) + 1;
+        // Note: Rating updates would come from a separate rider feedback system
+        await driver.save();
+      }
+    }
+
     await logRideEvent({
       type: 'ride_completed',
       rideId: ride.id,
