@@ -10,7 +10,6 @@ async function ensureGeoIndexes() {
     await pool.query('CREATE EXTENSION IF NOT EXISTS postgis');
     await pool.query('CREATE INDEX IF NOT EXISTS idx_drivers_location_gist ON drivers USING GIST (location)');
     await pool.query('CREATE INDEX IF NOT EXISTS idx_rides_pickup_location_gist ON rides USING GIST (pickup_location)');
-    await pool.query('CREATE INDEX IF NOT EXISTS idx_driver_locations_location_gist ON driver_locations USING GIST (location)');
   } catch (error) {
     logger.error('Failed to ensure PostGIS indexes', { error: error.message });
     throw error;
