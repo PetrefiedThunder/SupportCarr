@@ -12,6 +12,7 @@ const User = require('../../models/User');
 const rideService = require('../../services/rideService');
 const dispatchService = require('../../services/dispatchService');
 const paymentService = require('../../services/paymentService');
+const { persistLedgerEntry, reconcileLedgerToRide } = require('../../services/paymentWebhookService');
 const analyticsService = require('../../services/analyticsService');
 const smsService = require('../../services/smsService');
 
@@ -53,7 +54,11 @@ describe('rideService.requestRide', () => {
       create: jest.fn().mockResolvedValue({ id: 'cus_test' }),
       retrieve: jest.fn().mockResolvedValue({ id: 'cus_test' })
     };
-    stripeClient = { paymentIntents, customers };
+    const balanceTransactions = {
+      retrieve: jest.fn().mockResolvedValue({ fee: 120 })
+    };
+    const webhooks = { constructEvent: jest.fn() };
+    stripeClient = { paymentIntents, customers, balanceTransactions, webhooks };
     paymentService.__setStripeClient(stripeClient);
   });
 
@@ -132,7 +137,7 @@ describe('rideService.requestRide', () => {
     expect(dispatchService.triggerDriverNotification).toHaveBeenCalled();
   });
 
-  it('captures payment and logs analytics on ride completion', async () => {
+  it('captures payment asynchronously and reconciles via ledger', async () => {
     // Create a user
     const user = await User.create({
       email: 'rider@test.com',
@@ -161,12 +166,40 @@ describe('rideService.requestRide', () => {
     await rideService.updateRideStatus({ rideId: ride.id, status: 'en_route' });
     await rideService.updateRideStatus({ rideId: ride.id, status: 'completed' });
 
-    // Verify payment was captured
-    expect(paymentIntents.capture).toHaveBeenCalledWith(ride.paymentIntentId);
+    // Verify capture requested idempotently and ride waits for ledger reconciliation
+    expect(paymentIntents.capture).toHaveBeenCalledWith(ride.paymentIntentId, {}, {
+      idempotencyKey: `ride_capture_${ride.id}`
+    });
     const stored = await Ride.findById(ride.id);
-    expect(stored.paymentChargeId).toBe('ch_capture');
-    expect(stored.paymentStatus).toBe('succeeded');
-    expect(stored.paymentCapturedAt).toBeInstanceOf(Date);
+    expect(stored.paymentChargeId).toBeUndefined();
+    expect(stored.paymentStatus).toBe('processing');
+    expect(stored.paymentCapturedAt).toBeUndefined();
+
+    // Reconcile payment_intent.succeeded event asynchronously
+    const event = {
+      id: 'evt_123',
+      type: 'payment_intent.succeeded',
+      created: Math.floor(Date.now() / 1000),
+      data: {
+        object: {
+          id: ride.paymentIntentId,
+          status: 'succeeded',
+          amount_received: ride.priceCents,
+          amount_captured: ride.priceCents,
+          currency: 'usd',
+          metadata: { rideId: ride.id },
+          charges: { data: [{ id: 'ch_capture', balance_transaction: 'txn_123' }] }
+        }
+      }
+    };
+
+    const { ledger } = await persistLedgerEntry({ event, idempotencyKey: 'idem_evt_123' });
+    await reconcileLedgerToRide(ledger);
+
+    const reconciled = await Ride.findById(ride.id);
+    expect(reconciled.paymentChargeId).toBe('ch_capture');
+    expect(reconciled.paymentStatus).toBe('succeeded');
+    expect(reconciled.paymentCapturedAt).toBeInstanceOf(Date);
 
     // Verify analytics events were logged
     const eventTypes = airtableCreate.mock.calls.map((call) => call[0][0].fields.EventType);

@@ -22,11 +22,12 @@ const MAX_SURGE_MULTIPLIER = 2.5;
  */
 async function calculateSurgeMultiplier({ lat, lng, radiusMeters = DEFAULT_RADIUS_METERS }) {
   try {
+    const effectiveRadius = Number(radiusMeters);
     await ensureGeoIndexes();
 
     const [activeRides, activeDrivers] = await Promise.all([
-      countActiveRidesNear({ lat, lng, radiusMeters }),
-      countActiveDriversNear({ lat, lng, radiusMeters })
+      countActiveRidesNear({ lat, lng, radiusMeters: effectiveRadius }),
+      countActiveDriversNear({ lat, lng, radiusMeters: effectiveRadius })
     ]);
 
     // Avoid division by zero
@@ -46,19 +47,18 @@ async function calculateSurgeMultiplier({ lat, lng, radiusMeters = DEFAULT_RADIU
 
     // Calculate demand/supply ratio
     const demandSupplyRatio = activeRides / activeDrivers;
+    const geodesicPressure = Math.max(0, demandSupplyRatio - 1);
 
     // Calculate multiplier based on ratio
-    let multiplier = MIN_SURGE_MULTIPLIER;
-    let reason = 'Normal pricing';
-
-    if (demandSupplyRatio >= SURGE_THRESHOLD_RATIO) {
-      // Weight surge more aggressively when geodesic demand outpaces supply
-      multiplier = Math.min(
-        MIN_SURGE_MULTIPLIER + (demandSupplyRatio - 1.0) * 0.75,
-        MAX_SURGE_MULTIPLIER
-      );
-      reason = `High demand (${activeRides} rides, ${activeDrivers} drivers)`;
-    }
+    const multiplier = Math.min(
+      MIN_SURGE_MULTIPLIER + geodesicPressure * 0.85,
+      MAX_SURGE_MULTIPLIER
+    );
+    const reason = demandSupplyRatio >= SURGE_THRESHOLD_RATIO
+      ? `High demand (${activeRides} rides, ${activeDrivers} drivers)`
+      : geodesicPressure > 0
+        ? `Elevated demand (${activeRides} rides, ${activeDrivers} drivers)`
+        : 'Normal pricing';
 
     logger.info('Dynamic pricing calculated', {
       lat,

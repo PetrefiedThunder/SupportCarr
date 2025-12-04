@@ -160,6 +160,7 @@ jest.mock('../db/paymentLedgerRepository', () => ({
 jest.mock('../models/User', () => require('./mocks/userMock'));
 jest.mock('../models/Driver', () => require('./mocks/driverMock'));
 jest.mock('../models/Ride', () => require('./mocks/rideMock'));
+jest.mock('../models/PaymentLedger', () => require('./mocks/paymentLedgerMock'));
 
 const { resetAll } = require('./mocks');
 

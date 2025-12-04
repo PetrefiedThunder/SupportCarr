@@ -3,6 +3,10 @@ const logger = require('./logger');
 
 let pool;
 
+function __setPostgresPool(mockPool) {
+  pool = mockPool;
+}
+
 function getPostgresPool() {
   if (pool) {
     return pool;
@@ -33,5 +37,6 @@ async function initPostgres() {
 
 module.exports = {
   getPostgresPool,
-  initPostgres
+  initPostgres,
+  __setPostgresPool
 };

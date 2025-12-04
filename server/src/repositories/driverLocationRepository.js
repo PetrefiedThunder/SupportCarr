@@ -1,6 +1,27 @@
 const { getDatabase } = require('../db/knex');
 
 const MILES_TO_METERS = 1609.34;
+let schemaReady = false;
+
+async function ensureSchema(client) {
+  if (schemaReady) {
+    return;
+  }
+
+  await client.query('CREATE EXTENSION IF NOT EXISTS postgis');
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS driver_locations (
+      driver_id TEXT PRIMARY KEY,
+      location GEOGRAPHY(Point, 4326),
+      active BOOLEAN NOT NULL DEFAULT false,
+      available BOOLEAN NOT NULL DEFAULT false,
+      last_ride_completed_at TIMESTAMPTZ NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await client.query('CREATE INDEX IF NOT EXISTS idx_driver_locations_location_gist ON driver_locations USING GIST (location)');
+  schemaReady = true;
+}
 
 async function upsertDriverLocation({ driverId, lat, lng, active }) {
   const db = await getDatabase();
@@ -19,48 +40,55 @@ async function upsertDriverLocation({ driverId, lat, lng, active }) {
   }
 }
 
-async function findAndLockBestDriver({ lat, lng, radiusMiles }) {
-  const db = await getDatabase();
-  const radiusMeters = radiusMiles * MILES_TO_METERS;
+async function findBestDrivers({ lat, lng, radiusMiles }) {
+  const pool = getPostgresPool();
+  const client = await pool.connect();
+  const searchRadiusMeters = radiusMeters ?? (radiusMiles ? radiusMiles * MILES_TO_METERS : null);
 
-  return db.transaction(async (trx) => {
-    const candidate = await trx('drivers')
-      .select(
-        'id',
-        'last_ride_completed_at',
-        trx.raw('ST_Distance(location, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography) as distance_meters', [
-          lng,
-          lat
-        ])
-      )
-      .where({ active: true })
-      .where({ status: 'available' })
-      .whereNotNull('location')
-      .whereRaw('ST_DWithin(location, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)', [
-        lng,
-        lat,
-        radiusMeters
-      ])
-      .orderByRaw('last_ride_completed_at NULLS FIRST, distance_meters ASC')
-      .forUpdate()
-      .skipLocked()
-      .first();
+  if (!searchRadiusMeters) {
+    throw new Error('radiusMeters or radiusMiles is required to search for drivers');
+  }
 
-    if (!candidate) {
-      return null;
+  try {
+    await ensureSchema(client);
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT driver_id,
+              ST_Distance(location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) AS distance_meters,
+              last_ride_completed_at
+         FROM driver_locations
+        WHERE active = TRUE
+          AND available = TRUE
+          AND location IS NOT NULL
+          AND ST_DWithin(location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3)
+        ORDER BY last_ride_completed_at NULLS FIRST, distance_meters ASC
+        FOR UPDATE SKIP LOCKED
+        LIMIT 1`,
+      [lng, lat, searchRadiusMeters]
+    );
+
+    if (!rows.length) {
+      await client.query('ROLLBACK');
+      return [];
     }
 
     await trx('drivers')
       .where({ id: candidate.id })
       .update({ status: 'busy', updated_at: trx.fn.now() });
 
-    return {
-      driverId: candidate.id,
-      distanceMeters: Number(candidate.distance_meters),
-      distanceMiles: Number(candidate.distance_meters) / MILES_TO_METERS,
-      lastRideCompletedAt: candidate.last_ride_completed_at
-    };
-  });
+    return [{
+      driverId: best.driver_id,
+      distanceMeters: Number(best.distance_meters),
+      distanceMiles: Number(best.distance_meters) / MILES_TO_METERS,
+      lastRideCompletedAt: best.last_ride_completed_at
+    }];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.error('Failed to lock best driver', { error: error.message });
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function markDriverAvailable(driverId, lastRideCompletedAt = null) {
@@ -77,6 +105,6 @@ async function markDriverAvailable(driverId, lastRideCompletedAt = null) {
 
 module.exports = {
   upsertDriverLocation,
-  findAndLockBestDriver,
+  findBestDrivers,
   markDriverAvailable
 };

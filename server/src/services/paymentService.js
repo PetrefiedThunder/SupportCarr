@@ -143,16 +143,14 @@ async function captureRidePayment({ ride }) {
       { idempotencyKey: `ride_capture_${ride.id}` }
     );
 
-    await rideRepository.updateRide(ride.id, {
-      paymentStatus: 'processing',
-      paymentChargeId: capture.latest_charge,
-      lastPaymentError: null
-    });
+    ride.paymentStatus = 'processing';
+    ride.lastPaymentError = null;
+    await ride.save();
 
-    logger.info('Stripe payment captured for ride', {
+    logger.info('Stripe payment capture requested for ride', {
       rideId: ride.id,
       paymentIntentId: ride.paymentIntentId,
-      chargeId: capture.latest_charge
+      captureId: capture.id
     });
 
     return capture;
