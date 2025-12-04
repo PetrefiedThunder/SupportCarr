@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": ["server", "client"],
+  "overrides": {
+    "js-yaml": "^4.1.0",
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "^4.1.0"
+    }
+  },
   "scripts": {
     "install:all": "npm install --workspaces",
     "dev:server": "npm --workspace server run dev",
