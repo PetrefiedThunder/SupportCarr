@@ -3,6 +3,7 @@ const http = require('http');
 const createApp = require('./src/app');
 const { connectDatabase } = require('./src/config/database');
 const { getRedisClient } = require('./src/config/redis');
+const { startAirtableWorker } = require('./src/workers/airtableWorker');
 const logger = require('./src/config/logger');
 
 async function start() {
@@ -18,6 +19,10 @@ async function start() {
 
   await connectDatabase();
   await getRedisClient();
+
+  // ARCHITECTURE: Start async worker for Airtable logging
+  // Worker processes jobs from the analytics queue with rate limiting
+  startAirtableWorker();
 
   server.listen(port, () => {
     logger.info(`SupportCarr API listening on port ${port}`);

@@ -1,5 +1,6 @@
 const logger = require('../config/logger');
 const { getRedisClient } = require('../config/redis');
+const { DEFAULT_DISPATCH_RADIUS_MILES } = require('../config/constants');
 
 const DRIVER_GEO_KEY = 'drivers:geo';
 
@@ -12,7 +13,7 @@ async function storeDriverLocation(driverId, { lat, lng }) {
   }
 }
 
-async function findNearbyDrivers({ lat, lng, radiusMiles = 10 }) {
+async function findNearbyDrivers({ lat, lng, radiusMiles = DEFAULT_DISPATCH_RADIUS_MILES }) {
   const client = await getRedisClient();
   const radiusInKm = radiusMiles * 1.60934;
   let results;

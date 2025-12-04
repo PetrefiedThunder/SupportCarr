@@ -7,6 +7,11 @@ const { logRideEvent, updateRideInAirtable } = require('./analyticsService');
 const smsService = require('./smsService');
 const rideEvents = require('../utils/rideEvents');
 const serializeRide = require('../utils/serializeRide');
+const {
+  RIDE_PRICE_CENTS,
+  DISPATCH_RADIUS_MILES,
+  MAX_RIDE_DISTANCE_MILES
+} = require('../config/constants');
 
 // Finite state machine for ride status transitions
 const VALID_STATUS_TRANSITIONS = {
@@ -63,7 +68,7 @@ function validateLocation(location, fieldName) {
 
 function calculatePrice() {
   // Flat rate: $50 for all rides regardless of distance
-  return 5000;
+  return RIDE_PRICE_CENTS;
 }
 
 async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
@@ -92,9 +97,9 @@ async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
 
   const distanceMiles = estimateDistanceMiles(pickup, dropoff);
   
-  // Enforce 10-mile pilot program limit
-  if (distanceMiles > 10.0) {
-    throw new Error('Trip exceeds pilot 10-mile limit');
+  // Enforce pilot program distance limit
+  if (distanceMiles > MAX_RIDE_DISTANCE_MILES) {
+    throw new Error(`Trip exceeds pilot ${MAX_RIDE_DISTANCE_MILES}-mile limit`);
   }
   
   const priceCents = calculatePrice();
@@ -146,7 +151,7 @@ async function attemptAutoAssignDriver(ride) {
   const candidates = await findNearbyDrivers({
     lat: ride.pickup.lat,
     lng: ride.pickup.lng,
-    radiusMiles: 15
+    radiusMiles: DISPATCH_RADIUS_MILES
   });
 
   if (!candidates.length) {

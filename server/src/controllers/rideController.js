@@ -2,6 +2,7 @@ const rideService = require('../services/rideService');
 const rideEvents = require('../utils/rideEvents');
 const serializeRide = require('../utils/serializeRide');
 const Driver = require('../models/Driver');
+const { LONG_POLL_TIMEOUT_MS } = require('../config/constants');
 
 async function createRide(req, res, next) {
   try {
@@ -101,7 +102,7 @@ async function streamRide(req, res, next) {
 
     const keepAlive = setInterval(() => {
       res.write(': heartbeat\n\n');
-    }, 25000);
+    }, LONG_POLL_TIMEOUT_MS);
 
     req.on('close', () => {
       clearInterval(keepAlive);
