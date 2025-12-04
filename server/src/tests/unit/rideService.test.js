@@ -17,6 +17,9 @@ const smsService = require('../../services/smsService');
 
 jest.mock('../../services/dispatchService');
 jest.mock('../../services/smsService');
+jest.mock('../../repositories/driverLocationRepository', () => ({
+  markDriverAvailable: jest.fn()
+}));
 
 describe('rideService.requestRide', () => {
   let stripeClient;
@@ -25,7 +28,7 @@ describe('rideService.requestRide', () => {
   let airtableBase;
 
   beforeEach(() => {
-    dispatchService.findNearbyDrivers.mockResolvedValue([]);
+    dispatchService.findBestDrivers.mockResolvedValue([]);
     smsService.sendWtpSms.mockResolvedValue({ sid: 'SM_test' });
 
     airtableCreate = jest.fn().mockResolvedValue();
@@ -114,7 +117,9 @@ describe('rideService.requestRide', () => {
       currentLocation: { lat: 34.07, lng: -118.25 }
     });
 
-    dispatchService.findNearbyDrivers.mockResolvedValue([driver.id]);
+    dispatchService.findBestDrivers.mockResolvedValue([
+      { driver, driverId: driver.id, score: 0, distance: 0 }
+    ]);
 
     const ride = await rideService.requestRide({
       riderId: user._id,

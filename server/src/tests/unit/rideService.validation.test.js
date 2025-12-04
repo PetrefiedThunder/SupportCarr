@@ -11,13 +11,16 @@ const dispatchService = require('../../services/dispatchService');
 
 jest.mock('../../services/dispatchService');
 jest.mock('../../services/smsService');
+jest.mock('../../repositories/driverLocationRepository', () => ({
+  markDriverAvailable: jest.fn()
+}));
 
 describe('rideService validation and FSM', () => {
   let stripeClient;
   let airtableBase;
 
   beforeEach(() => {
-    dispatchService.findNearbyDrivers.mockResolvedValue([]);
+    dispatchService.findBestDrivers.mockResolvedValue([]);
 
     // Mock Airtable
     const airtableCreate = jest.fn().mockResolvedValue();

@@ -2,6 +2,7 @@ const Ride = require('../models/Ride');
 const Driver = require('../models/Driver');
 const User = require('../models/User');
 const { findBestDrivers, triggerDriverNotification } = require('./dispatchService');
+const { markDriverAvailable } = require('../repositories/driverLocationRepository');
 const { ensureRidePaymentIntent, captureRidePayment } = require('./paymentService');
 const { logRideEvent, updateRideInAirtable } = require('./analyticsService');
 const { calculateRidePrice } = require('./pricingService');
@@ -244,6 +245,7 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, ca
         driver.totalRides = (driver.totalRides || 0) + 1;
         // Note: Rating updates would come from a separate rider feedback system
         await driver.save();
+        await markDriverAvailable(driver.id, driver.lastRideCompletedAt);
       }
     }
 
