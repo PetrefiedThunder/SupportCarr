@@ -358,11 +358,11 @@ describe('Twilio WTP webhook', () => {
           Body: 'YES'
         });
 
-      expect(response.status).toBe(200);
-      expect(response.text).toContain('<Response></Response>');
-      
-      // Request should be rejected (empty TwiML response)
-      // No ride should be updated
+      // SECURITY: After Sprint 1 hardening, invalid signatures return 403 (not 200)
+      expect(response.status).toBe(403);
+      expect(response.body).toEqual({ error: 'Forbidden' });
+
+      // Request should be rejected - no ride should be updated
     });
   });
 });

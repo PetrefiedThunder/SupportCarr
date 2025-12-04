@@ -23,7 +23,10 @@ server/   Express API, MongoDB models, Redis-powered dispatch, Twilio/Stripe/Air
 server/scripts/   Operational tooling (WTP tests, Airtable validator, demo workflow)
 docs/     Architecture, pilot setup, API reference, and contributor guides
 *.md      Code review, roadmap, audit, and contribution documentation
+_archived/   Paused experiments and migrations (not part of active development)
 ```
+
+**Note:** The Rust migration (`_archived/supportcarr-rs/`) has been paused to focus on Node.js stability and core feature development. The current priority is delivering a production-ready MVP on the existing Express + MongoDB stack.
 
 ## Core Capabilities
 ### Ride & Dispatch Platform
