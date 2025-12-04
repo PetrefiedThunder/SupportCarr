@@ -38,33 +38,41 @@ async function fetchBalanceFee(charge) {
 async function persistLedgerEntry({ event, idempotencyKey }) {
   const object = event.data?.object || {};
   const rideId = object.metadata?.rideId;
-  const existing = await PaymentLedger.findOne({ stripeEventId: event.id });
-  if (existing) {
-    return { ledger: existing, alreadyProcessed: Boolean(existing.processedAt) };
-  }
-
   const charge = object.charges?.data?.[0];
   const feeInfo = await fetchBalanceFee(charge);
 
-  const ledger = await PaymentLedger.create({
-    stripeEventId: event.id,
-    idempotencyKey,
-    type: event.type,
-    stripeCreatedAt: new Date((event.created || Math.floor(Date.now() / 1000)) * 1000),
-    paymentIntentId: object.id,
-    chargeId: charge?.id,
-    balanceTransactionId: charge?.balance_transaction,
-    rideId: rideId || undefined,
-    status: object.status,
-    amountReceivedCents: object.amount_received,
-    currency: object.currency,
-    applicationFeeAmountCents:
-      object.application_fee_amount ?? feeInfo.applicationFeeAmountCents,
-    balanceFeeCents: feeInfo.balanceFeeCents,
-    payload: object
-  });
+  const ledger = await PaymentLedger.findOneAndUpdate(
+    { $or: [{ stripeEventId: event.id }, { idempotencyKey }] },
+    {
+      $setOnInsert: {
+        stripeEventId: event.id,
+        idempotencyKey,
+        type: event.type,
+        stripeCreatedAt: new Date(
+          (event.created || Math.floor(Date.now() / 1000)) * 1000
+        )
+      },
+      $set: {
+        idempotencyKey,
+        paymentIntentId: object.id,
+        chargeId: charge?.id,
+        balanceTransactionId: charge?.balance_transaction,
+        rideId: rideId || undefined,
+        status: object.status,
+        amountReceivedCents: object.amount_received,
+        amountCapturedCents:
+          object.amount_received ?? object.amount_captured ?? object.amount_capturable,
+        currency: object.currency,
+        applicationFeeAmountCents:
+          object.application_fee_amount ?? feeInfo.applicationFeeAmountCents,
+        balanceFeeCents: feeInfo.balanceFeeCents,
+        payload: object
+      }
+    },
+    { new: true, upsert: true }
+  );
 
-  return { ledger, alreadyProcessed: false };
+  return { ledger, alreadyProcessed: Boolean(ledger.processedAt) };
 }
 
 async function reconcileLedgerToRide(ledger) {
@@ -101,7 +109,7 @@ async function reconcileLedgerToRide(ledger) {
 
     if (ledger.type === 'payment_intent.succeeded') {
       ride.paymentStatus = 'succeeded';
-      ride.paymentChargeId = ledger.chargeId || ride.paymentChargeId;
+      ride.paymentChargeId = ledger.chargeId || ledger.payload?.charges?.data?.[0]?.id;
       ride.paymentCapturedAt = ledger.stripeCreatedAt || new Date();
       ride.lastPaymentError = null;
     } else if (ledger.type === 'payment_intent.payment_failed') {
@@ -133,6 +141,12 @@ async function reconcileLedgerToRide(ledger) {
 }
 
 async function handleStripeWebhook({ rawBody, signature, idempotencyKey }) {
+  if (!idempotencyKey) {
+    const error = new Error('Missing Idempotency-Key header');
+    error.status = 400;
+    throw error;
+  }
+
   const event = verifyStripeEvent({ rawBody, signature });
   const { ledger, alreadyProcessed } = await persistLedgerEntry({ event, idempotencyKey });
 

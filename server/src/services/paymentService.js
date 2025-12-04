@@ -148,14 +148,13 @@ async function captureRidePayment({ ride }) {
     );
 
     ride.paymentStatus = 'processing';
-    ride.paymentChargeId = capture.latest_charge;
     ride.lastPaymentError = null;
     await ride.save();
 
-    logger.info('Stripe payment captured for ride', {
+    logger.info('Stripe payment capture requested for ride', {
       rideId: ride.id,
       paymentIntentId: ride.paymentIntentId,
-      chargeId: capture.latest_charge
+      captureId: capture.id
     });
 
     return capture;

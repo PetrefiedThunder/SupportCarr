@@ -7,7 +7,11 @@ const paymentLedgerSchema = new mongoose.Schema(
       unique: true,
       required: true
     },
-    idempotencyKey: String,
+    idempotencyKey: {
+      type: String,
+      required: true,
+      unique: true
+    },
     type: String,
     stripeCreatedAt: Date,
     paymentIntentId: {
@@ -22,6 +26,7 @@ const paymentLedgerSchema = new mongoose.Schema(
     },
     status: String,
     amountReceivedCents: Number,
+    amountCapturedCents: Number,
     currency: String,
     applicationFeeAmountCents: Number,
     balanceFeeCents: Number,
