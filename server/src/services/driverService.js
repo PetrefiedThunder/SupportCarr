@@ -16,15 +16,18 @@ async function updateDriverStatus({ driverId, active, currentLocation }) {
     throw new Error('Driver not found');
   }
 
+  const activeState = typeof active === 'boolean' ? active : driver.active;
+
   if (typeof active === 'boolean') {
     driver.active = active;
   }
 
   if (currentLocation) {
     driver.currentLocation = currentLocation;
-    if (active) {
-      await storeDriverLocation(driver.id, currentLocation);
-    }
+    await storeDriverLocation(driver.id, currentLocation, activeState);
+  } else if (typeof active === 'boolean' && driver.currentLocation) {
+    // Ensure PostGIS availability mirrors the driver's active toggle
+    await storeDriverLocation(driver.id, driver.currentLocation, activeState);
   }
 
   await driver.save();

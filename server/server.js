@@ -3,6 +3,7 @@ const http = require('http');
 const createApp = require('./src/app');
 const { connectDatabase } = require('./src/config/database');
 const { getRedisClient } = require('./src/config/redis');
+const { initPostgres } = require('./src/config/postgres');
 const { startAirtableWorker } = require('./src/workers/airtableWorker');
 const logger = require('./src/config/logger');
 
@@ -18,6 +19,7 @@ async function start() {
   const server = http.createServer(app);
 
   await connectDatabase();
+  await initPostgres();
   await getRedisClient();
 
   // ARCHITECTURE: Start async worker for Airtable logging

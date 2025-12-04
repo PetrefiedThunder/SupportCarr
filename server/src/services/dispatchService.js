@@ -1,39 +1,19 @@
 const logger = require('../config/logger');
-const { getRedisClient } = require('../config/redis');
 const { DEFAULT_DISPATCH_RADIUS_MILES } = require('../config/constants');
 const Driver = require('../models/Driver');
-
-const DRIVER_GEO_KEY = 'drivers:geo';
+const {
+  upsertDriverLocation,
+  findAndLockBestDriver,
+  markDriverAvailable
+} = require('../repositories/driverLocationRepository');
 
 // Scoring weights for smart dispatch
 const WEIGHT_DISTANCE = 0.5;
 const WEIGHT_LAST_RIDE_TIME = 0.3;
 const WEIGHT_RATING = 0.2;
 
-async function storeDriverLocation(driverId, { lat, lng }) {
-  const client = await getRedisClient();
-  if (client.geoAdd.length === 2) {
-    await client.geoAdd(DRIVER_GEO_KEY, [{ longitude: lng, latitude: lat, member: driverId }]);
-  } else {
-    await client.geoAdd(DRIVER_GEO_KEY, [[lng, lat, driverId]]);
-  }
-}
-
-async function findNearbyDrivers({ lat, lng, radiusMiles = DEFAULT_DISPATCH_RADIUS_MILES }) {
-  const client = await getRedisClient();
-  const radiusInKm = radiusMiles * 1.60934;
-  let results;
-  if (client.geoRadius.length === 2) {
-    results = await client.geoRadius(DRIVER_GEO_KEY, {
-      longitude: lng,
-      latitude: lat,
-      radius: radiusInKm,
-      unit: 'km'
-    });
-  } else {
-    results = await client.geoRadius(DRIVER_GEO_KEY, lng, lat, radiusInKm, 'km');
-  }
-  return Array.isArray(results) ? results : [];
+async function storeDriverLocation(driverId, { lat, lng }, active = true) {
+  await upsertDriverLocation({ driverId, lat, lng, active });
 }
 
 /**
@@ -79,54 +59,42 @@ function calculateDispatchScore(driver, distanceMiles) {
  * @returns {Promise<Array>} Sorted array of {driverId, score, distance}
  */
 async function findBestDrivers({ lat, lng, radiusMiles = DEFAULT_DISPATCH_RADIUS_MILES }) {
-  // Get nearby driver IDs from Redis geospatial index
-  const driverIds = await findNearbyDrivers({ lat, lng, radiusMiles });
+  const best = await findAndLockBestDriver({ lat, lng, radiusMiles });
 
-  if (!driverIds.length) {
+  if (!best) {
     return [];
   }
 
-  // Fetch driver details from MongoDB
-  const drivers = await Driver.find({
-    _id: { $in: driverIds },
-    active: true
-  }).populate('user');
+  const driver = await Driver.findOne({ _id: best.driverId, active: true }).populate('user');
 
-  if (!drivers.length) {
+  if (!driver) {
+    await markDriverAvailable(best.driverId);
     return [];
   }
 
-  // Calculate scores for each driver
-  const scoredDrivers = drivers.map((driver) => {
-    // Calculate actual distance (simplified - in production use geospatial query)
-    const distance = estimateDistance(
-      lat,
-      lng,
-      driver.currentLocation?.lat,
-      driver.currentLocation?.lng
-    );
+  const distance = best.distanceMiles ?? estimateDistance(
+    lat,
+    lng,
+    driver.currentLocation?.lat,
+    driver.currentLocation?.lng
+  );
 
-    const score = calculateDispatchScore(driver, distance);
+  const score = calculateDispatchScore(driver, distance);
 
-    return {
-      driver,
-      driverId: driver._id.toString(),
-      score,
-      distance
-    };
-  });
-
-  // Sort by score (lower is better)
-  scoredDrivers.sort((a, b) => a.score - b.score);
-
-  logger.info('Smart dispatch scored drivers', {
+  logger.info('Smart dispatch selected driver via PostGIS', {
     pickup: { lat, lng },
-    candidateCount: scoredDrivers.length,
-    topScore: scoredDrivers[0]?.score,
-    topDistance: scoredDrivers[0]?.distance
+    driverId: driver.id,
+    distance,
+    lastRideCompletedAt: best.lastRideCompletedAt
   });
 
-  return scoredDrivers;
+  return [{
+    driver,
+    driverId: driver._id.toString(),
+    score,
+    distance,
+    lastRideCompletedAt: best.lastRideCompletedAt
+  }];
 }
 
 /**
@@ -161,7 +129,6 @@ async function triggerDriverNotification(driver, ride) {
 
 module.exports = {
   storeDriverLocation,
-  findNearbyDrivers,
   findBestDrivers,
   triggerDriverNotification
 };
