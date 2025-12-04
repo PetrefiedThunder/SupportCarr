@@ -4,6 +4,7 @@ const rideRoutes = require('./rideRoutes');
 const driverRoutes = require('./driverRoutes');
 const healthRoutes = require('./healthRoutes');
 const twilioRoutes = require('./twilioRoutes');
+const paymentRoutes = require('./paymentRoutes');
 
 const router = express.Router();
 
@@ -12,5 +13,6 @@ router.use('/auth', authRoutes);
 router.use('/rides', rideRoutes);
 router.use('/drivers', driverRoutes);
 router.use('/twilio', twilioRoutes);
+router.use('/payments', paymentRoutes);
 
 module.exports = router;
