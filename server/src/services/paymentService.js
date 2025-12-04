@@ -92,17 +92,22 @@ async function ensureRidePaymentIntent({ ride, amountCents }) {
       return existingIntent;
     }
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency: 'usd',
-      capture_method: 'manual',
-      customer: customerId,
-      metadata: {
-        rideId: ride.id,
-        riderId: ride.rider ? String(ride.rider) : undefined,
-        driverId: ride.driver ? String(ride.driver) : undefined
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: amountCents,
+        currency: 'usd',
+        capture_method: 'manual',
+        customer: customerId,
+        metadata: {
+          rideId: ride.id,
+          riderId: ride.rider ? String(ride.rider) : undefined,
+          driverId: ride.driver ? String(ride.driver) : undefined
+        }
+      },
+      {
+        idempotencyKey: `ride_pi_${ride.id}`
       }
-    });
+    );
 
     ride.paymentIntentId = paymentIntent.id;
     ride.paymentStatus = paymentIntent.status;
@@ -136,11 +141,14 @@ async function captureRidePayment({ ride }) {
       await ensureRidePaymentIntent({ ride, amountCents: ride.priceCents });
     }
 
-    const capture = await stripe.paymentIntents.capture(ride.paymentIntentId);
+    const capture = await stripe.paymentIntents.capture(
+      ride.paymentIntentId,
+      {},
+      { idempotencyKey: `ride_capture_${ride.id}` }
+    );
 
-    ride.paymentStatus = capture.status;
+    ride.paymentStatus = 'processing';
     ride.paymentChargeId = capture.latest_charge;
-    ride.paymentCapturedAt = new Date();
     ride.lastPaymentError = null;
     await ride.save();
 
@@ -178,6 +186,7 @@ module.exports = {
   ensureStripeCustomer,
   ensureRidePaymentIntent,
   captureRidePayment,
+  getStripeClient,
   __setStripeClient,
   __resetStripeClient
 };

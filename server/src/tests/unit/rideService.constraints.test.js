@@ -11,6 +11,9 @@ const dispatchService = require('../../services/dispatchService');
 
 jest.mock('../../services/dispatchService');
 jest.mock('../../services/smsService');
+jest.mock('../../repositories/driverLocationRepository', () => ({
+  markDriverAvailable: jest.fn()
+}));
 
 describe('rideService - Pilot Constraints & Safety', () => {
   let stripeClient;
@@ -18,7 +21,7 @@ describe('rideService - Pilot Constraints & Safety', () => {
   let user;
 
   beforeEach(async () => {
-    dispatchService.findNearbyDrivers.mockResolvedValue([]);
+    dispatchService.findBestDrivers.mockResolvedValue([]);
 
     // Mock Airtable
     const airtableCreate = jest.fn().mockResolvedValue();

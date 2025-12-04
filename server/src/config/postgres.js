@@ -1,38 +1,37 @@
 const { Pool } = require('pg');
+const logger = require('./logger');
 
 let pool;
 
-/**
- * Lazily initialize and return a singleton Postgres pool.
- * The URI should point to a Postgres instance with PostGIS installed.
- */
 function getPostgresPool() {
   if (pool) {
     return pool;
   }
 
-  const connectionString = process.env.POSTGRES_URI || process.env.DATABASE_URL;
+  const connectionString =
+    process.env.POSTGRES_URL || process.env.DATABASE_URL || 'postgresql://localhost:5432/supportcarr';
 
-  if (!connectionString) {
-    throw new Error('POSTGRES_URI or DATABASE_URL must be set for PostGIS queries');
-  }
+  pool = new Pool({ connectionString });
 
-  pool = new Pool({
-    connectionString,
+  pool.on('error', (error) => {
+    logger.error('Unexpected Postgres error', { error: error.message });
   });
 
   return pool;
 }
 
-/**
- * Override the pool for testing purposes.
- * @param {Object} mockPool - A mock with a `query` method.
- */
-function __setPostgresPool(mockPool) {
-  pool = mockPool;
+async function initPostgres() {
+  const pgPool = getPostgresPool();
+  const client = await pgPool.connect();
+  try {
+    await client.query('SELECT 1');
+    logger.info('Connected to Postgres');
+  } finally {
+    client.release();
+  }
 }
 
 module.exports = {
   getPostgresPool,
-  __setPostgresPool,
+  initPostgres
 };

@@ -20,7 +20,14 @@ function createApp() {
   }
   app.use(cors({ origin: corsOrigin, credentials: true }));
 
-  app.use(express.json());
+  // Stripe webhooks require the raw body to validate signatures
+  app.use('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }));
+  app.use((req, res, next) => {
+    if (req.originalUrl.startsWith('/api/payments/stripe/webhook')) {
+      return next();
+    }
+    return express.json()(req, res, next);
+  });
   app.use(morgan('dev'));
   app.use(
     rateLimit({
