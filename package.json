@@ -4,10 +4,7 @@
   "private": true,
   "workspaces": ["server", "client"],
   "overrides": {
-    "js-yaml": "^4.1.0",
-    "@istanbuljs/load-nyc-config": {
-      "js-yaml": "^4.1.0"
-    }
+    "sucrase": "^3.35.1"
   },
   "scripts": {
     "install:all": "npm install --workspaces",
