@@ -1,7 +1,7 @@
 const rideService = require('../services/rideService');
 const rideEvents = require('../utils/rideEvents');
 const serializeRide = require('../utils/serializeRide');
-const Driver = require('../models/Driver');
+const driverRepository = require('../db/driverRepository');
 const { LONG_POLL_TIMEOUT_MS } = require('../config/constants');
 
 async function createRide(req, res, next) {
@@ -33,13 +33,13 @@ async function updateRide(req, res, next) {
       // Driver can update if:
       // 1. Ride is unassigned (status='requested') and they're accepting it
       // 2. Ride is already assigned to them
-      const driver = await Driver.findOne({ user: req.user.sub });
+      const driver = await driverRepository.findByUserId(req.user.sub);
 
       if (!driver) {
         return res.status(403).json({ message: 'Driver profile required' });
       }
 
-      const isAssignedToDriver = existingRide.driver?.toString() === driver.id;
+      const isAssignedToDriver = existingRide.driver?.id === driver.id;
       const isAcceptingUnassignedRide = existingRide.status === 'requested' && !existingRide.driver;
 
       if (!isAssignedToDriver && !isAcceptingUnassignedRide) {
@@ -69,11 +69,12 @@ async function streamRide(req, res, next) {
       return res.status(404).json({ message: 'Ride not found' });
     }
 
-    const userId = req.user.sub;
-    const isParticipant =
-      ride.rider?.toString() === userId ||
-      ride.driver?.user?.toString() === userId ||
-      req.user.role === 'admin';
+  const userId = req.user.sub;
+  const isParticipant =
+    ride.riderId === userId ||
+    ride.rider?.id === userId ||
+    ride.driver?.user?.id === userId ||
+    req.user.role === 'admin';
 
     if (!isParticipant) {
       return res.status(403).json({ message: 'Forbidden' });
@@ -128,14 +129,13 @@ async function listDriverRides(req, res, next) {
 
     // IDOR protection: verify requester owns this driver record or is admin
     if (req.user.role !== 'admin') {
-      const Driver = require('../models/Driver');
-      const driver = await Driver.findById(requestedDriverId);
+      const driver = await driverRepository.findById(requestedDriverId);
 
       if (!driver) {
         return res.status(404).json({ message: 'Driver not found' });
       }
 
-      if (driver.user.toString() !== req.user.sub) {
+      if (driver.userId?.toString() !== req.user.sub) {
         return res.status(403).json({ message: 'Forbidden' });
       }
     }
@@ -154,11 +154,12 @@ async function pollRide(req, res, next) {
       return res.status(404).json({ message: 'Ride not found' });
     }
 
-    const userId = req.user.sub;
-    const isParticipant =
-      ride.rider?.toString() === userId ||
-      ride.driver?.user?.toString() === userId ||
-      req.user.role === 'admin';
+  const userId = req.user.sub;
+  const isParticipant =
+    ride.riderId === userId ||
+    ride.rider?.id === userId ||
+    ride.driver?.user?.id === userId ||
+    req.user.role === 'admin';
 
     if (!isParticipant) {
       return res.status(403).json({ message: 'Forbidden' });

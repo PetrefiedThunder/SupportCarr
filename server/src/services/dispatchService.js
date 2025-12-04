@@ -1,6 +1,6 @@
 const logger = require('../config/logger');
 const { DEFAULT_DISPATCH_RADIUS_MILES } = require('../config/constants');
-const Driver = require('../models/Driver');
+const driverRepository = require('../db/driverRepository');
 const {
   upsertDriverLocation,
   findAndLockBestDriver,
@@ -65,7 +65,7 @@ async function findBestDrivers({ lat, lng, radiusMiles = DEFAULT_DISPATCH_RADIUS
     return [];
   }
 
-  const driver = await Driver.findOne({ _id: best.driverId, active: true }).populate('user');
+  const driver = await driverRepository.findWithUserById(best.driverId);
 
   if (!driver) {
     await markDriverAvailable(best.driverId);
@@ -75,8 +75,8 @@ async function findBestDrivers({ lat, lng, radiusMiles = DEFAULT_DISPATCH_RADIUS
   const distance = best.distanceMiles ?? estimateDistance(
     lat,
     lng,
-    driver.currentLocation?.lat,
-    driver.currentLocation?.lng
+    driver.location?.lat,
+    driver.location?.lng
   );
 
   const score = calculateDispatchScore(driver, distance);

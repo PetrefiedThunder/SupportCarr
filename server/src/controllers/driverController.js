@@ -19,14 +19,14 @@ async function updateDriver(req, res, next) {
 
     // IDOR protection: verify requester owns this driver record or is admin
     if (req.user.role !== 'admin') {
-      const Driver = require('../models/Driver');
-      const existingDriver = await Driver.findById(requestedDriverId);
+      const { findById } = require('../db/driverRepository');
+      const existingDriver = await findById(requestedDriverId);
 
       if (!existingDriver) {
         return res.status(404).json({ message: 'Driver not found' });
       }
 
-      if (existingDriver.user.toString() !== req.user.sub) {
+      if (existingDriver.userId?.toString() !== req.user.sub) {
         return res.status(403).json({ message: 'Forbidden' });
       }
     }
