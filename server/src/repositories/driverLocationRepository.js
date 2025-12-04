@@ -1,5 +1,4 @@
-const logger = require('../config/logger');
-const { getPostgresPool } = require('../config/postgres');
+const { getDatabase } = require('../db/knex');
 
 const MILES_TO_METERS = 1609.34;
 let schemaReady = false;
@@ -25,26 +24,19 @@ async function ensureSchema(client) {
 }
 
 async function upsertDriverLocation({ driverId, lat, lng, active }) {
-  const pool = getPostgresPool();
-  const client = await pool.connect();
-  try {
-    await ensureSchema(client);
-    await client.query(
-      `INSERT INTO driver_locations (driver_id, location, active, available, updated_at)
-         VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography, $4, $4, NOW())
-       ON CONFLICT (driver_id)
-       DO UPDATE SET
-         location = EXCLUDED.location,
-         active = EXCLUDED.active,
-         available = EXCLUDED.available,
-         updated_at = NOW()`,
-      [driverId, lng, lat, Boolean(active)]
-    );
-  } catch (error) {
-    logger.error('Failed to upsert driver location in PostGIS', { error: error.message, driverId });
-    throw error;
-  } finally {
-    client.release();
+  const db = await getDatabase();
+  const [row] = await db('drivers')
+    .where({ id: driverId })
+    .update({
+      location: db.raw('ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography', [lng, lat]),
+      active: Boolean(active),
+      status: Boolean(active) ? 'available' : 'offline',
+      updated_at: db.fn.now()
+    })
+    .returning('*');
+
+  if (!row) {
+    throw new Error('Driver not found');
   }
 }
 
@@ -80,9 +72,9 @@ async function findBestDrivers({ lat, lng, radiusMiles }) {
       return [];
     }
 
-    const best = rows[0];
-    await client.query('UPDATE driver_locations SET available = FALSE, updated_at = NOW() WHERE driver_id = $1', [best.driver_id]);
-    await client.query('COMMIT');
+    await trx('drivers')
+      .where({ id: candidate.id })
+      .update({ status: 'busy', updated_at: trx.fn.now() });
 
     return [{
       driverId: best.driver_id,
@@ -100,25 +92,15 @@ async function findBestDrivers({ lat, lng, radiusMiles }) {
 }
 
 async function markDriverAvailable(driverId, lastRideCompletedAt = null) {
-  const pool = getPostgresPool();
-  const client = await pool.connect();
-  try {
-    await ensureSchema(client);
-    await client.query(
-      `UPDATE driver_locations
-          SET available = TRUE,
-              active = TRUE,
-              last_ride_completed_at = COALESCE($2, last_ride_completed_at),
-              updated_at = NOW()
-        WHERE driver_id = $1`,
-      [driverId, lastRideCompletedAt]
-    );
-  } catch (error) {
-    logger.error('Failed to mark driver available', { error: error.message, driverId });
-    throw error;
-  } finally {
-    client.release();
-  }
+  const db = await getDatabase();
+  await db('drivers')
+    .where({ id: driverId })
+    .update({
+      status: 'available',
+      active: true,
+      last_ride_completed_at: lastRideCompletedAt || db.raw('last_ride_completed_at'),
+      updated_at: db.fn.now()
+    });
 }
 
 module.exports = {

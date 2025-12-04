@@ -1,6 +1,6 @@
 const logger = require('../config/logger');
 const { DEFAULT_DISPATCH_RADIUS_MILES } = require('../config/constants');
-const Driver = require('../models/Driver');
+const driverRepository = require('../db/driverRepository');
 const {
   upsertDriverLocation,
   findBestDrivers: findBestDriversFromPostgis,
@@ -76,8 +76,8 @@ async function findBestDrivers({ lat, lng, radiusMiles = DEFAULT_DISPATCH_RADIUS
   const distance = candidate.distanceMiles ?? estimateDistance(
     lat,
     lng,
-    driver.currentLocation?.lat,
-    driver.currentLocation?.lng
+    driver.location?.lat,
+    driver.location?.lng
   );
 
   const score = calculateDispatchScore(driver, distance);

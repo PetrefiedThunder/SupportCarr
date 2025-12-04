@@ -1,7 +1,7 @@
 const logger = require('../config/logger');
-const PaymentLedger = require('../models/PaymentLedger');
-const Ride = require('../models/Ride');
 const rideEvents = require('../utils/rideEvents');
+const paymentLedgerRepository = require('../db/paymentLedgerRepository');
+const rideRepository = require('../db/rideRepository');
 const { getStripeClient } = require('./paymentService');
 
 function verifyStripeEvent({ rawBody, signature }) {
@@ -86,25 +86,26 @@ async function reconcileLedgerToRide(ledger) {
       stripeEventId: ledger.stripeEventId,
       paymentIntentId: ledger.paymentIntentId
     });
-    ledger.processedAt = new Date();
-    ledger.processingError = 'missing_ride_reference';
-    return ledger.save();
+    return paymentLedgerRepository.markLedgerProcessed(ledger.id, {
+      processingError: 'missing_ride_reference'
+    });
   }
 
-  const ride = await Ride.findById(rideId);
+  const ride = await rideRepository.findById(rideId);
   if (!ride) {
     logger.warn('Payment ledger could not find ride', {
       rideId,
       stripeEventId: ledger.stripeEventId
     });
-    ledger.processedAt = new Date();
-    ledger.processingError = 'ride_not_found';
-    return ledger.save();
+    return paymentLedgerRepository.markLedgerProcessed(ledger.id, {
+      processingError: 'ride_not_found'
+    });
   }
 
   try {
+    const updates = {};
     if (ledger.paymentIntentId && !ride.paymentIntentId) {
-      ride.paymentIntentId = ledger.paymentIntentId;
+      updates.paymentIntentId = ledger.paymentIntentId;
     }
 
     if (ledger.type === 'payment_intent.succeeded') {
@@ -113,29 +114,29 @@ async function reconcileLedgerToRide(ledger) {
       ride.paymentCapturedAt = ledger.stripeCreatedAt || new Date();
       ride.lastPaymentError = null;
     } else if (ledger.type === 'payment_intent.payment_failed') {
-      ride.paymentStatus = 'failed';
-      ride.lastPaymentError =
+      updates.paymentStatus = 'failed';
+      updates.lastPaymentError =
         ledger.payload?.last_payment_error?.message || 'Payment failed';
     }
 
-    await ride.save();
+    if (Object.keys(updates).length > 0) {
+      await rideRepository.updateRide(rideId, updates);
+    }
     rideEvents.emit('ride-payment-updated', {
       rideId: ride.id,
-      paymentStatus: ride.paymentStatus
+      paymentStatus: updates.paymentStatus || ride.paymentStatus
     });
 
-    ledger.processedAt = new Date();
-    ledger.processingError = null;
-    await ledger.save();
-    return ledger;
+    return paymentLedgerRepository.markLedgerProcessed(ledger.id, { processingError: null });
   } catch (error) {
     logger.error('Failed to reconcile payment ledger to ride', {
       rideId,
       stripeEventId: ledger.stripeEventId,
       error: error.message
     });
-    ledger.processingError = error.message;
-    await ledger.save();
+    await paymentLedgerRepository.markLedgerProcessed(ledger.id, {
+      processingError: error.message
+    });
     throw error;
   }
 }
@@ -153,8 +154,7 @@ async function handleStripeWebhook({ rawBody, signature, idempotencyKey }) {
   if (['payment_intent.succeeded', 'payment_intent.payment_failed'].includes(event.type)) {
     await reconcileLedgerToRide(ledger);
   } else if (!alreadyProcessed) {
-    ledger.processedAt = new Date();
-    await ledger.save();
+    await paymentLedgerRepository.markLedgerProcessed(ledger.id, { processingError: null });
   }
 
   return ledger;

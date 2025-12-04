@@ -2,6 +2,8 @@ require('dotenv').config();
 
 const Stripe = require('stripe');
 const logger = require('../config/logger');
+const userRepository = require('../db/userRepository');
+const rideRepository = require('../db/rideRepository');
 
 let stripeClient;
 
@@ -23,7 +25,6 @@ function getStripeClient() {
 
 async function ensureStripeCustomer({ user }) {
   const stripe = getStripeClient();
-  const User = require('../models/User');
 
   if (user.stripeCustomerId) {
     try {
@@ -49,9 +50,7 @@ async function ensureStripeCustomer({ user }) {
   });
 
   // Update user with customer ID
-  await User.findByIdAndUpdate(user.id, {
-    stripeCustomerId: customer.id
-  });
+  await userRepository.updateStripeCustomerId(user.id, customer.id);
 
   logger.info('Stripe customer created', {
     userId: user.id,
@@ -63,11 +62,10 @@ async function ensureStripeCustomer({ user }) {
 
 async function ensureRidePaymentIntent({ ride, amountCents }) {
   const stripe = getStripeClient();
-  const User = require('../models/User');
 
   try {
     // Get the rider user to ensure they have a Stripe customer
-    const riderUser = await User.findById(ride.rider);
+    const riderUser = await userRepository.findById(ride.riderId || ride.rider);
     if (!riderUser) {
       throw new Error('Rider not found');
     }
@@ -82,13 +80,11 @@ async function ensureRidePaymentIntent({ ride, amountCents }) {
           amount: amountCents
         });
         const updatedIntent = await stripe.paymentIntents.retrieve(ride.paymentIntentId);
-        ride.paymentStatus = updatedIntent.status;
-        await ride.save();
+        await rideRepository.updateRide(ride.id, { paymentStatus: updatedIntent.status });
         return updatedIntent;
       }
 
-      ride.paymentStatus = existingIntent.status;
-      await ride.save();
+      await rideRepository.updateRide(ride.id, { paymentStatus: existingIntent.status });
       return existingIntent;
     }
 
@@ -100,8 +96,8 @@ async function ensureRidePaymentIntent({ ride, amountCents }) {
         customer: customerId,
         metadata: {
           rideId: ride.id,
-          riderId: ride.rider ? String(ride.rider) : undefined,
-          driverId: ride.driver ? String(ride.driver) : undefined
+          riderId: ride.riderId ? String(ride.riderId) : undefined,
+          driverId: ride.driverId ? String(ride.driverId) : undefined
         }
       },
       {
@@ -109,10 +105,11 @@ async function ensureRidePaymentIntent({ ride, amountCents }) {
       }
     );
 
-    ride.paymentIntentId = paymentIntent.id;
-    ride.paymentStatus = paymentIntent.status;
-    ride.lastPaymentError = null;
-    await ride.save();
+    await rideRepository.updateRide(ride.id, {
+      paymentIntentId: paymentIntent.id,
+      paymentStatus: paymentIntent.status,
+      lastPaymentError: null
+    });
 
     logger.info('Stripe payment intent created for ride', {
       rideId: ride.id,
@@ -126,8 +123,7 @@ async function ensureRidePaymentIntent({ ride, amountCents }) {
       error: error.message
     });
 
-    ride.lastPaymentError = error.message;
-    await ride.save().catch(() => {});
+    await rideRepository.updateRide(ride.id, { lastPaymentError: error.message }).catch(() => {});
 
     throw new Error('Payment intent creation failed');
   }
@@ -165,9 +161,9 @@ async function captureRidePayment({ ride }) {
       error: error.message
     });
 
-    ride.paymentStatus = 'failed';
-    ride.lastPaymentError = error.message;
-    await ride.save().catch(() => {});
+    await rideRepository
+      .updateRide(ride.id, { paymentStatus: 'failed', lastPaymentError: error.message })
+      .catch(() => {});
 
     throw new Error('Payment capture failed');
   }

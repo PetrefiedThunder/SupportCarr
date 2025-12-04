@@ -1,10 +1,10 @@
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
-const mongoose = require('mongoose');
 const { connectDatabase, disconnectDatabase } = require('../config/database');
-const User = require('../models/User');
-const Driver = require('../models/Driver');
-const Ride = require('../models/Ride');
+const { getDatabase } = require('../db/knex');
+const userRepository = require('../db/userRepository');
+const driverRepository = require('../db/driverRepository');
+const rideRepository = require('../db/rideRepository');
 const { storeDriverLocation } = require('../services/dispatchService');
 
 const riders = Array.from({ length: 10 }).map((_, idx) => ({
@@ -30,10 +30,11 @@ const driverLocations = [
 
 async function seed() {
   await connectDatabase();
-  await mongoose.connection.dropDatabase();
+  const db = await getDatabase();
+  await db.raw('TRUNCATE TABLE payment_ledgers, rides, drivers, users RESTART IDENTITY CASCADE');
 
   const adminPassword = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD || 'Admin1234!', 10);
-  await User.create({
+  await userRepository.createUser({
     email: process.env.SEED_ADMIN_EMAIL || 'admin@supportcarr.test',
     passwordHash: adminPassword,
     role: 'admin',
@@ -43,7 +44,7 @@ async function seed() {
 
   const riderDocs = await Promise.all(
     riders.map(async (rider) =>
-      User.create({
+      userRepository.createUser({
         email: rider.email,
         passwordHash: await bcrypt.hash(rider.password, 10),
         role: 'rider',
@@ -55,7 +56,7 @@ async function seed() {
 
   const driverDocs = await Promise.all(
     driverLocations.map(async (location, idx) => {
-      const user = await User.create({
+      const user = await userRepository.createUser({
         email: `driver${idx + 1}@supportcarr.test`,
         passwordHash: await bcrypt.hash(process.env.SEED_DRIVER_PASSWORD || 'Driver1234!', 10),
         role: 'driver',
@@ -63,14 +64,17 @@ async function seed() {
         phoneNumber: `+1323444${(2000 + idx).toString()}`
       });
 
-      const driver = await Driver.create({
-        user: user.id,
+      const driver = await driverRepository.upsertDriver({
+        userId: user.id,
         vehicleType: idx % 2 === 0 ? 'van' : 'truck',
-        vehicleDescription: 'SupportCarr Fleet Vehicle',
-        active: true,
-        currentLocation: location
+        vehicleDescription: 'SupportCarr Fleet Vehicle'
       });
 
+      await driverRepository.updateDriverStatusAndLocation({
+        driverId: driver.id,
+        active: true,
+        location
+      });
       await storeDriverLocation(driver.id, location);
       return driver;
     })
@@ -100,13 +104,19 @@ async function seed() {
     }
   ];
 
-  await Ride.insertMany(
-    rides.map((ride) => ({
-      ...ride,
-      bikeType: 'ebike',
-      distanceMiles: 5,
-      priceCents: 5900
-    }))
+  await Promise.all(
+    rides.map((ride) =>
+      rideRepository.createRide({
+        riderId: ride.rider,
+        driverId: ride.driver,
+        pickup: ride.pickup,
+        dropoff: ride.dropoff,
+        status: ride.status,
+        bikeType: 'ebike',
+        distanceMiles: 5,
+        priceCents: 5900
+      })
+    )
   );
 
   console.log('Seed data created successfully');

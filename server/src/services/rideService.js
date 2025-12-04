@@ -1,6 +1,6 @@
-const Ride = require('../models/Ride');
-const Driver = require('../models/Driver');
-const User = require('../models/User');
+const rideRepository = require('../db/rideRepository');
+const driverRepository = require('../db/driverRepository');
+const userRepository = require('../db/userRepository');
 const { findBestDrivers, triggerDriverNotification } = require('./dispatchService');
 const { markDriverAvailable } = require('../repositories/driverLocationRepository');
 const { ensureRidePaymentIntent, captureRidePayment } = require('./paymentService');
@@ -82,7 +82,7 @@ async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
   }
 
   // Get rider's phone number for denormalized storage
-  const rider = await User.findById(riderId);
+  const rider = await userRepository.findById(riderId);
   if (!rider) {
     throw new Error('Rider not found');
   }
@@ -106,8 +106,8 @@ async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
     distanceMiles
   });
 
-  const ride = await Ride.create({
-    rider: riderId,
+  let ride = await rideRepository.createRide({
+    riderId,
     riderPhone: rider.phoneNumber,
     pickup,
     dropoff,
@@ -115,7 +115,8 @@ async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
     status: 'requested',
     distanceMiles,
     priceCents,
-    notes
+    notes,
+    wtpAsked: false
   });
 
   await ensureRidePaymentIntent({ ride, amountCents: priceCents });
@@ -126,7 +127,7 @@ async function requestRide({ riderId, pickup, dropoff, bikeType, notes }) {
     pricingMultiplier: multiplier,
     pricingReason: reason
   });
-  await attemptAutoAssignDriver(ride);
+  ride = await attemptAutoAssignDriver(ride);
 
   return ride;
 }
@@ -171,9 +172,7 @@ async function attemptAutoAssignDriver(ride) {
   // Select the best driver (lowest score = best match)
   const { driver, score, distance } = scoredDrivers[0];
 
-  ride.driver = driver.id;
-  ride.status = 'accepted';
-  await ride.save();
+  ride = await rideRepository.updateRide(ride.id, { driverId: driver.id, status: 'accepted' });
 
   await triggerDriverNotification(driver, ride);
   await logRideEvent({
@@ -196,9 +195,7 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, ca
     throw new Error('status is required');
   }
 
-  const ride = await Ride.findById(rideId)
-    .populate({ path: 'driver', populate: 'user' })
-    .populate('rider');
+  const ride = await rideRepository.findByIdWithDriver(rideId);
 
   if (!ride) {
     throw new Error('Ride not found');
@@ -209,42 +206,27 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, ca
     validateStatusTransition(ride.status, status);
   }
 
-  ride.status = status;
-
-  // Set cancellation reason for cancelled/rejected statuses
-  if (cancellationReason !== undefined) {
-    ride.cancellationReason = cancellationReason;
+  if (driverEtaMinutes !== undefined && (typeof driverEtaMinutes !== 'number' || driverEtaMinutes < 0)) {
+    throw new Error('driverEtaMinutes must be a non-negative number');
   }
 
-  if (driverEtaMinutes !== undefined) {
-    if (typeof driverEtaMinutes !== 'number' || driverEtaMinutes < 0) {
-      throw new Error('driverEtaMinutes must be a non-negative number');
-    }
-    ride.driverEtaMinutes = driverEtaMinutes;
-  }
-  if (driverId !== undefined) {
-    ride.driver = driverId;
-  }
-  if (assistRequired !== undefined) {
-    ride.assistRequired = assistRequired;
-  }
-  if (assistReason !== undefined) {
-    ride.assistReason = assistReason;
-  }
-  await ride.save();
-  await logRideEvent({ type: 'ride_status_updated', rideId: ride.id, status });
+  const updatedRide = await rideRepository.updateRide(rideId, {
+    status,
+    cancellationReason,
+    driverEtaMinutes,
+    driverId,
+    assistRequired,
+    assistReason
+  });
+  await logRideEvent({ type: 'ride_status_updated', rideId: updatedRide.id, status });
 
   if (status === 'completed') {
-    await captureRidePayment({ ride });
+    await captureRidePayment({ ride: updatedRide });
 
     // FEATURE: Update driver stats for smart dispatch
-    if (ride.driver) {
-      const driver = await Driver.findById(ride.driver);
+    if (updatedRide.driverId) {
+      const driver = await driverRepository.incrementRideStats(updatedRide.driverId);
       if (driver) {
-        driver.lastRideCompletedAt = new Date();
-        driver.totalRides = (driver.totalRides || 0) + 1;
-        // Note: Rating updates would come from a separate rider feedback system
-        await driver.save();
         await markDriverAvailable(driver.id, driver.lastRideCompletedAt);
       }
     }
@@ -259,22 +241,21 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, ca
 
     // Send WTP SMS if not already asked
     // Note: wtpAsked might be undefined for old rides, so we check for both undefined and false
-    const shouldSendWtp = !ride.wtpAsked && ride.rider?.phoneNumber && ride.dropoff?.address;
+    const shouldSendWtp = !updatedRide.wtpAsked && ride.rider?.phoneNumber && updatedRide.dropoff?.address;
     
     if (shouldSendWtp) {
       try {
         await smsService.sendWtpSms({
           riderPhone: ride.rider.phoneNumber,
-          dropoffAddress: ride.dropoff.address,
-          rideId: ride._id.toString()
+          dropoffAddress: updatedRide.dropoff.address,
+          rideId: updatedRide.id
         });
 
         // Mark WTP as asked
-        ride.wtpAsked = true;
-        await ride.save();
+        await rideRepository.updateRide(updatedRide.id, { wtpAsked: true });
 
         // Update Airtable
-        await updateRideInAirtable(ride._id.toString(), {
+        await updateRideInAirtable(updatedRide.id, {
           'WTP asked?': true,
           'Completed at': new Date().toISOString()
         });
@@ -285,26 +266,26 @@ async function updateRideStatus({ rideId, status, driverEtaMinutes, driverId, ca
     }
   }
 
-  const serializedRide = serializeRide(ride);
+  const serializedRide = serializeRide(updatedRide);
   rideEvents.emit('ride-status', {
-    rideId: ride.id,
+    rideId: updatedRide.id,
     status,
     ride: serializedRide
   });
 
-  return ride;
+  return updatedRide;
 }
 
 async function listRidesForUser(userId) {
-  return Ride.find({ rider: userId }).sort({ createdAt: -1 });
+  return rideRepository.listByRider(userId);
 }
 
 async function listActiveRidesForDriver(driverId) {
-  return Ride.find({ driver: driverId, status: { $in: ['accepted', 'en_route'] } }).sort({ createdAt: -1 });
+  return rideRepository.listActiveByDriver(driverId);
 }
 
 async function getRideById(rideId) {
-  return Ride.findById(rideId).populate({ path: 'driver', populate: 'user' });
+  return rideRepository.findByIdWithDriver(rideId);
 }
 
 module.exports = {

@@ -1,6 +1,6 @@
 const express = require('express');
 const twilio = require('twilio');
-const Ride = require('../models/Ride');
+const rideRepository = require('../db/rideRepository');
 const { logSmsToAirtable, updateRideInAirtable } = require('../services/analyticsService');
 const logger = require('../config/logger');
 
@@ -116,12 +116,7 @@ async function handleWtpResponse(fromPhone, body, upper) {
   try {
     // Find the most recent ride for THIS PHONE NUMBER where WTP was asked but not answered
     // Query by riderPhone directly to avoid population and ensure correct matching
-    const ride = await Ride.findOne({
-      riderPhone: fromPhone,
-      wtpAsked: true,
-      wtpResponse: null
-    })
-      .sort({ createdAt: -1 });
+    const ride = await rideRepository.findLatestWtpRideForPhone(fromPhone);
 
     if (!ride) {
       logger.debug('No matching ride found for WTP response', {
@@ -150,16 +145,10 @@ async function handleWtpResponse(fromPhone, body, upper) {
 
     // Update ride if we got a valid response
     if (wtpResponse || wtpAmountUsd) {
-      if (wtpResponse) {
-        ride.wtpResponse = wtpResponse;
-      }
-      if (wtpAmountUsd) {
-        ride.wtpAmountUsd = wtpAmountUsd;
-      }
-      await ride.save();
+      await rideRepository.updateRide(ride.id, { wtpResponse, wtpAmountUsd });
 
       logger.info('WTP response recorded', {
-        rideId: ride._id,
+        rideId: ride.id,
         fromPhone,
         wtpResponse,
         wtpAmountUsd
@@ -174,9 +163,9 @@ async function handleWtpResponse(fromPhone, body, upper) {
         updates['WTP amount (USD)'] = wtpAmountUsd;
       }
 
-      await updateRideInAirtable(ride._id.toString(), updates);
+      await updateRideInAirtable(ride.id, updates);
 
-      return ride._id.toString();
+      return ride.id;
     }
 
     return null;
