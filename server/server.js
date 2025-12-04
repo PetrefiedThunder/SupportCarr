@@ -2,10 +2,10 @@ require('dotenv').config();
 const http = require('http');
 const createApp = require('./src/app');
 const { connectDatabase } = require('./src/config/database');
-const { getRedisClient } = require('./src/config/redis');
 const { initPostgres } = require('./src/config/postgres');
 const { startAirtableWorker } = require('./src/workers/airtableWorker');
 const logger = require('./src/config/logger');
+const { checkInfrastructure } = require('./src/utils/bootstrap');
 
 async function start() {
   // SECURITY: Fail fast if critical secrets are missing
@@ -20,7 +20,7 @@ async function start() {
 
   await connectDatabase();
   await initPostgres();
-  await getRedisClient();
+  await checkInfrastructure();
 
   // ARCHITECTURE: Start async worker for Airtable logging
   // Worker processes jobs from the analytics queue with rate limiting
