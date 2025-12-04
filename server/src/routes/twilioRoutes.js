@@ -9,27 +9,32 @@ const router = express.Router();
 /**
  * Middleware to verify Twilio request signature
  * Prevents spoofed requests from corrupting WTP data
+ * SECURITY: Always enforces signature verification except in test mode
  */
 function verifyTwilioSignature(req, res, next) {
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-
-  // If Twilio is not configured, allow requests (dev/test scenarios)
-  if (!authToken) {
-    logger.warn('Twilio signature verification skipped - TWILIO_AUTH_TOKEN not set');
-    return next();
-  }
-
-  // SECURITY: Only skip verification in test environment AND when not in production
-  // This prevents accidental bypass if NODE_ENV is misconfigured in production
-  const isProduction = process.env.NODE_ENV === 'production';
+  // SECURITY: Only skip verification in test environment
   const isTest = process.env.NODE_ENV === 'test';
-
-  if (isTest && !isProduction) {
+  if (isTest) {
     logger.debug('Twilio signature verification skipped - test mode');
     return next();
   }
 
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+  // SECURITY: Fail if auth token is missing (no bypass allowed)
+  if (!authToken) {
+    logger.error('Twilio signature verification failed - TWILIO_AUTH_TOKEN not configured');
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   const twilioSignature = req.headers['x-twilio-signature'];
+
+  // SECURITY: Reject requests without signature header
+  if (!twilioSignature) {
+    logger.error('Twilio signature verification failed - no signature header');
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
 
   // Validate signature
@@ -44,10 +49,9 @@ function verifyTwilioSignature(req, res, next) {
     logger.error('Invalid Twilio signature', {
       url,
       // Mask signature for security (log only first 6 chars)
-      signature: twilioSignature ? `${twilioSignature.slice(0, Math.min(6, twilioSignature.length))}...` : null
+      signature: twilioSignature.slice(0, Math.min(6, twilioSignature.length)) + '...'
     });
-    // Return empty TwiML response but don't process the request
-    return res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+    return res.status(403).json({ error: 'Forbidden' });
   }
 
   next();

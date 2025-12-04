@@ -1,8 +1,17 @@
 const Joi = require('joi');
 
+// VALIDATION: Enforce valid coordinate ranges to prevent data corruption
 const locationSchema = Joi.object({
-  lat: Joi.number().required(),
-  lng: Joi.number().required(),
+  lat: Joi.number().min(-90).max(90).required()
+    .messages({
+      'number.min': 'Latitude must be between -90 and 90',
+      'number.max': 'Latitude must be between -90 and 90'
+    }),
+  lng: Joi.number().min(-180).max(180).required()
+    .messages({
+      'number.min': 'Longitude must be between -180 and 180',
+      'number.max': 'Longitude must be between -180 and 180'
+    }),
   address: Joi.string().allow('', null)
 });
 
@@ -11,7 +20,11 @@ const registerSchema = Joi.object({
     email: Joi.string().email().required(),
     password: Joi.string().min(8).required(),
     name: Joi.string().required(),
-    phoneNumber: Joi.string().required(),
+    // VALIDATION: Enforce E.164 phone number format (e.g., +14155552671)
+    phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required()
+      .messages({
+        'string.pattern.base': 'Phone number must be in E.164 format (e.g., +14155552671)'
+      }),
     role: Joi.string().valid('rider', 'driver', 'admin').default('rider')
   })
 });
