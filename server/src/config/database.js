@@ -1,37 +1,32 @@
 const mongoose = require('mongoose');
 const logger = require('./logger');
+const { getDatabase, destroyDatabase } = require('../db/knex');
 
 /**
- * Connect to MongoDB using the configured URI.
+ * Connect to PostgreSQL and (optionally) legacy MongoDB while migrating.
+ * Startup fails fast if PostgreSQL is unavailable.
  * @returns {Promise<void>}
  */
 async function connectDatabase() {
-  const mongoUri =
-    process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/supportcarr';
+  await getDatabase();
 
-  if (mongoose.connection.readyState === 1) {
-    return;
-  }
-
-  mongoose.set('strictQuery', true);
-
-  try {
-    await mongoose.connect(mongoUri, {
-      autoIndex: true
-    });
-    logger.info('Connected to MongoDB');
-  } catch (error) {
-    logger.error('Failed to connect to MongoDB', { error: error.message });
-    throw error;
+  const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  if (mongoUri && mongoose.connection.readyState !== 1) {
+    mongoose.set('strictQuery', true);
+    await mongoose.connect(mongoUri, { autoIndex: true });
+    logger.info('Connected to MongoDB (legacy support)');
   }
 }
 
 /**
- * Disconnect from MongoDB.
+ * Disconnect from PostgreSQL and MongoDB.
  * @returns {Promise<void>}
  */
 async function disconnectDatabase() {
-  await mongoose.disconnect();
+  await destroyDatabase();
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect();
+  }
 }
 
 module.exports = {
