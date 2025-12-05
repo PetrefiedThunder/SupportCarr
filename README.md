@@ -64,7 +64,7 @@ _archived/   Paused experiments and migrations (not part of active development)
 
 ## Getting Started
 ### Prerequisites
-- Node.js 20+ and npm 10+
+- Node.js 20.19+ (or >=22.12.0) and npm 10+
 - PostgreSQL with PostGIS (local Docker works fine)
 - Redis (fail-fast on startup if unavailable)
 - MongoDB only when migrating legacy data (optional)
