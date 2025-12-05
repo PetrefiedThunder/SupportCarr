@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    restart: always
+    ports:
+      - "80:8080" # Maps VPS port 80 to Container port 8080
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgres://supportcarr:secure_password@db:5432/supportcarr
+      - REDIS_URL=redis://redis:6379
+      # INJECT THESE SECRETS ON THE SERVER OR VIA .env FILE
+      - JWT_SECRET=${JWT_SECRET}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - AIRTABLE_API_KEY=${AIRTABLE_API_KEY}
+      - AIRTABLE_BASE_ID=${AIRTABLE_BASE_ID}
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgis/postgis:14-3.3-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=supportcarr
+      - POSTGRES_PASSWORD=secure_password
+      - POSTGRES_DB=supportcarr
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+    restart: always
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  redisdata:

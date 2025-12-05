@@ -3,6 +3,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 const routes = require('./routes');
 const errorHandler = require('./middlewares/errorHandler');
 
@@ -11,14 +12,16 @@ function createApp() {
 
   app.use(helmet());
 
-  // SECURITY: Require explicit CORS_ORIGIN configuration
+  // SECURITY: CORS configuration
   // In development, CORS_ORIGIN should be set (e.g., http://localhost:3000)
-  // In production, this MUST be set to the exact frontend origin
+  // In production with Docker, frontend is served from same origin (no CORS needed)
   const corsOrigin = process.env.CORS_ORIGIN;
-  if (!corsOrigin) {
-    throw new Error('CORS_ORIGIN environment variable is required');
+  if (!corsOrigin && process.env.NODE_ENV !== 'production') {
+    throw new Error('CORS_ORIGIN environment variable is required in development');
   }
-  app.use(cors({ origin: corsOrigin, credentials: true }));
+  if (corsOrigin) {
+    app.use(cors({ origin: corsOrigin, credentials: true }));
+  }
 
   // Stripe webhooks require the raw body to validate signatures
   app.use('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }));
@@ -38,6 +41,17 @@ function createApp() {
 
   app.get('/api/healthz', (req, res) => res.json({ status: 'ok' }));
   app.use('/api', routes);
+
+  // Serve React PWA in production
+  if (process.env.NODE_ENV === 'production') {
+    const clientBuildPath = path.join(__dirname, '../../client/dist');
+    app.use(express.static(clientBuildPath));
+
+    // Catch-all handler for React Router
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(clientBuildPath, 'index.html'));
+    });
+  }
 
   app.use(errorHandler);
 
