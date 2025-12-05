@@ -5,18 +5,36 @@ const MILES_TO_METERS = 1609.34;
 
 async function upsertDriverLocation({ driverId, lat, lng, active }) {
   const db = await getDatabase();
-  const [row] = await db('drivers')
-    .where({ id: driverId })
-    .update({
-      location: db.raw('ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography', [lng, lat]),
-      active: Boolean(active),
-      status: Boolean(active) ? 'available' : 'offline',
-      updated_at: db.fn.now()
-    })
-    .returning('*');
 
-  if (!row) {
-    throw new Error('Driver not found');
+  try {
+    const [row] = await db('drivers')
+      .insert({
+        id: driverId,
+        location: db.raw('ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography', [lng, lat]),
+        active: Boolean(active),
+        status: Boolean(active) ? 'available' : 'offline',
+        updated_at: db.fn.now()
+      })
+      .onConflict('id')
+      .merge({
+        location: db.raw('ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography', [lng, lat]),
+        active: Boolean(active),
+        status: Boolean(active) ? 'available' : 'offline',
+        updated_at: db.fn.now()
+      })
+      .returning('*');
+
+    return row;
+  } catch (error) {
+    // If insert fails due to missing required fields (user_id, vehicle_type),
+    // it means the driver record doesn't exist in Postgres yet
+    if (error.code === '23502') { // NOT NULL violation
+      throw new Error(`Driver ${driverId} not found in Postgres. Ensure driver is created during registration.`);
+    }
+    if (error.code === '23503') { // Foreign key violation
+      throw new Error(`Driver ${driverId} references non-existent user. Check data consistency.`);
+    }
+    throw error;
   }
 }
 
