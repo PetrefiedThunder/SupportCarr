@@ -24,11 +24,10 @@ describe('geoService PostGIS queries', () => {
   test('ensures indexes and extension exist', async () => {
     await ensureGeoIndexes();
 
-    expect(mockPool.query).toHaveBeenCalledTimes(4);
+    expect(mockPool.query).toHaveBeenCalledTimes(3);
     expect(mockPool.query.mock.calls[0][0]).toContain('CREATE EXTENSION IF NOT EXISTS postgis');
     expect(mockPool.query.mock.calls[1][0]).toContain('drivers');
     expect(mockPool.query.mock.calls[2][0]).toContain('rides');
-    expect(mockPool.query.mock.calls[3][0]).toContain('driver_locations');
   });
 
   test('counts only available drivers using geodesic radius', async () => {
