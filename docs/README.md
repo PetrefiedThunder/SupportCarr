@@ -7,7 +7,7 @@ covering Echo Park / Silver Lake in Los Angeles with a Joshua Tree pilot.
 
 You need these installed on your machine or server:
 
-- **Node.js**: Version 20+
+- **Node.js**: Version 20.19+ (or >=22.12.0)
 - **npm**: Version 10+
 - **PostgreSQL with PostGIS**: A running instance (local Docker is fine)
 - **Redis**: A running instance (local or cloud)
